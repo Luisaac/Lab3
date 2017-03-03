@@ -23,7 +23,7 @@ import javax.imageio.ImageIO;
 
 public class Lab3 {
 
-	private static int     imageSize = 8; // Images are imageSize x imageSize.  The provided data is 128x128, but this can be resized by setting this value (or passing in an argument).  
+	public static int     imageSize = 8; // Images are imageSize x imageSize.  The provided data is 128x128, but this can be resized by setting this value (or passing in an argument).  
 	// You might want to resize to 8x8, 16x16, 32x32, or 64x64; this can reduce your network size and speed up debugging runs.
 	// ALL IMAGES IN A TRAINING RUN SHOULD BE THE *SAME* SIZE.
 	private static enum    Category { airplanes, butterfly, flower, grand_piano, starfish, watch };  // We'll hardwire these in, but more robust code would not do so.
@@ -40,7 +40,7 @@ public class Lab3 {
 	private static int    maxEpochs = 1000; // Feel free to set to a different value.
 
 	private static int kernal_length = 5;
-	
+
 	public static void main(String[] args) {
 		String trainDirectory = "images/trainset/";
 		String  tuneDirectory = "images/tuneset/";
@@ -408,36 +408,160 @@ public class Lab3 {
 
 
 	private static int trainDeep(Vector<Vector<Double>> trainFeatureVectors, Vector<Vector<Double>> tuneFeatureVectors,	Vector<Vector<Double>> testFeatureVectors) {
-		// You need to implement this method!
-
-		//imageSize = 8
-		// Layer 1
-		Vector<Vector<double[][]>> C1_layers = new Vector<Vector<double[][]>>();
+		
+		Layer C1_layer = new Layer(20,5);
+		
+		// only for gray
 		for(int i = 0; i < trainFeatureVectors.size(); i++){
-			C1_layers.add(convolution(trainFeatureVectors.get(i)));
+			
+			// forward
+			Vector<double[][]> v = new Vector<double[][]>();
+			double[][] input = transform(trainFeatureVectors.get(i));
+			v.add(input);
+			C1_layer.getOutput(v);
+			
+			// TODO backward
 		}
 		
-		// Layer 2
-		Vector<Vector<double[][]>> MP1_layers = new Vector<Vector<double[][]>>();
-		for(int j = 0; j <C1_layers.size();j++){
-			Vector<double[][]> newVector = new Vector<double[][]>();
-			Vector<double[][]> temp = C1_layers.get(j);
-			for(int i = 0; i < temp.size(); i++){
-				double[][] newMatrix = maxPooling(temp.get(i),2,true);
-				newVector.add(newMatrix);
-			}
-			MP1_layers.add(newVector);
-		}
-		
-		Vector<Vector<double[][]>> C2_layers = new Vector<Vector<double[][]>>();
-		
-		
-	
 		return -1;
 	}
+
+	private static double[][] transform(Vector<Double> v){
+		double[][] ret = new double[imageSize][imageSize];
+		for(int i = 0; i < imageSize; i++){
+			for(int j = 0; j < imageSize; j++){
+				ret[i][j] = v.get(i*imageSize+j);
+			}
+		}
+		return ret;
+	}
+
+
+
+	////////////////////////////////////////////////////////////////////////////////////////////////
+
+}
+
+// con
+
+
+class Layer{
+	Plate[] plates;
+	Vector<double[][]> output_layer;
+	int kernal_length;
+	Vector<double[][]> kernals;
+	int num_plate;
+	public Layer(int num_plate, int kernal_length){
+		plates = new Plate[num_plate];
+		this.kernal_length = kernal_length;
+		this.num_plate = num_plate;
+		
+		// init kernals
+		Vector<double[][]> kernals = new Vector<double[][]>();
+		for(int index = 0; index < num_plate; index++){
+			double[][] kernal = new double[kernal_length][kernal_length];
+			for(int i = 0; i < kernal_length; i++){
+				for(int j = 0; j < kernal_length; j++){
+					kernal[i][j] = getRandom(kernal_length*kernal_length,1);
+				}
+			}
+			kernals.add(kernal);
+		}
+		int Clayer_length = Lab3.imageSize-(kernal_length/2)*2;
+		
+		for(int i = 0; i < num_plate; i++){
+			plates[i] = new Plate(Clayer_length, kernals.get(i),kernal_length);
+		}
+		
+	}
+	// pass in one image
+	public void getOutput(Vector<double[][]> input){	
+
+		int start = kernal_length/2;
+		int end = Lab3.imageSize-kernal_length/2-1;
+
+		// for all kernals
+		for(int index = 0; index < kernals.size(); index++){
+			double[][] kernal = kernals.get(index);
+
+			
+			for(int index_input = 0; index_input< input.size(); index_input++){
+				for(int i = 0; i < Lab3.imageSize-kernal_length+1; i++){
+					for(int j = 0; j < Lab3.imageSize-kernal_length+1; j++){
+						// multiply
+						for(int ki = 0; ki < kernal_length; ki++){
+							for(int kj = 0; kj < kernal_length; kj++){
+								plates[index].matrix1[i][j] += input.get(index_input)[i+ki][j+kj]*kernal[ki][kj];
+							}
+						}
+					}
+				}
+			}
+		}
+		
+		for(int i = 0; i < num_plate; i++){
+			plates[i].output();
+			output_layer.add(plates[i].matrix2);
+		}
+		
+	}
+		
+
+
+	
+
+	private double getRandom(int fanin, int fanout){
+		double range = Math.max(Double.MIN_VALUE, 4.0 / Math.sqrt(6.0 * (fanin + fanout)));
+		return (2.0 * Lab3.random() - 1.0) * range;
+	}
+
+
+
+
+}
+
+class Plate{
+	double[][] matrix1;
+	double[][] matrix2;
+	double[][] kernal;
+	boolean[][] useAsMax;
+	boolean[][] dropout1;
+	boolean[][] dropout2;
+
+	public Plate(int input_length, double[][] kernal, int kernal_length){
+		matrix1 = new double[input_length][input_length];
+		this.kernal = kernal;
+		dropout1 = new boolean[input_length][input_length];
+		
+		useAsMax = new boolean[input_length][input_length];
+		
+		
+		
+		
+	}
+	
+	public void output(){
+		int len = 2;
+		int newLength = matrix1.length/len;
+		dropout2 = new boolean[newLength][newLength];
+		
+		for(int i = 0; i < dropout1.length;i++){
+			for(int j = 0; j < dropout1.length;j++){
+				dropout1[i][j] = Math.random()<0.5? false :true; 
+			}
+		}
+		for(int i = 0; i < dropout2.length;i++){
+			for(int j = 0; j < dropout2.length;j++){
+				dropout2[i][j] = Math.random()<0.5? false :true; 
+			}
+		}
+		
+		matrix2= maxPooling(matrix1,len,false);
+	}
+
 	
 	
-	private static double[][] maxPooling(double[][] matrix, int len, boolean overlap){
+	private double[][] maxPooling(double[][] matrix, int len, boolean overlap){
 		if(overlap){
 			int newLength = matrix.length-len+1;
 			double[][] newMatrix = new double[newLength][newLength];
@@ -461,50 +585,22 @@ public class Lab3 {
 		}		
 	}
 	
-	private static double maxOfMatrix(double[][] matrix, int i, int j, int len){
+
+	private double maxOfMatrix(double[][] matrix, int i, int j, int len){
 		double max = Double.MIN_VALUE;
+		int i_max = 0;
+		int j_max = 0;
 		for(; i < i+len; i++){
 			for(; j < j+len; j++){
-				if(matrix[i][j]>max) max = matrix[i][j];
-			}
-		}
-		return max;
-	}
-	
-	
-	
-	
-	private static Vector<double[][]> convolution(Vector<Double> v){
-		
-
-		//TODO kernal undetermined
-		Vector<double[][]> kernals = new Vector<double[][]>();
-		
-		Vector<double[][]> layer = new Vector<double[][]>();
-		
-		
-		int start = kernal_length/2;
-		int end = imageSize-kernal_length/2-1;
-		
-		// for all kernals
-		for(int index = 0; index < kernals.size(); index++){
-			double[][] kernal = kernals.get(index);
-			double[][] newMatrix = new double[imageSize-(kernal_length/2)*2][imageSize-(kernal_length/2)*2];
-			for(int i = 0; i < imageSize-kernal_length+1; i++){
-				for(int j = 0; j < imageSize-kernal_length+1; j++){
-					// multiply
-					for(int ki = 0; ki < kernal_length; ki++){
-						for(int kj = 0; kj < kernal_length; kj++){
-							newMatrix[i][j] += v.get((i+ki)*imageSize+(j+kj))*kernal[ki][kj];
-						}
-					}
+				if(matrix[i][j]>max){
+					max = matrix[i][j];
+					i_max = i;
+					j_max = j;
 				}
 			}
-			layer.add(newMatrix);
 		}
-		return layer;
+		useAsMax[i_max][j_max] = true;
+		return max;
 	}
-
-	////////////////////////////////////////////////////////////////////////////////////////////////
 
 }
