@@ -409,18 +409,31 @@ public class Lab3 {
 
 	private static int trainDeep(Vector<Vector<Double>> trainFeatureVectors, Vector<Vector<Double>> tuneFeatureVectors,	Vector<Vector<Double>> testFeatureVectors) {
 		
-		Layer C1_layer = new Layer(20,5);
+		int kernal_length1 = 5;
+		int pooling_length1 = 2;
+		Layer C1_layer = new Layer(20,kernal_length1,pooling_length1,imageSize);
+		int secondLayerSize = (imageSize-kernal_length1+1)/pooling_length1;
+		Layer C2_layer = new Layer(20,5,2,secondLayerSize);
 		
-		// only for gray
+		Vector<double[][]> output_layer = new Vector<double[][]>();
+		
+		// For every picture (only gray)
 		for(int i = 0; i < trainFeatureVectors.size(); i++){
 			
 			// forward
 			Vector<double[][]> v = new Vector<double[][]>();
 			double[][] input = transform(trainFeatureVectors.get(i));
 			v.add(input);
-			C1_layer.getOutput(v);
+			//edit 1
+			Vector<double[][]> temp = C1_layer.getOutput(v);
+			output_layer =  C2_layer.getOutput(temp);
+			
+			//temp_function(output_layer);
 			
 			// TODO backward
+			Vector<double[][]> last_delta = null;
+			Vector<double[][]> second_delta = C2_layer.flat_backward(last_delta, C1_layer.output_layer);
+			C1_layer.backward(second_delta, v);
 		}
 		
 		return -1;
@@ -442,7 +455,6 @@ public class Lab3 {
 
 }
 
-// con
 
 
 class Layer{
@@ -450,11 +462,18 @@ class Layer{
 	Vector<double[][]> output_layer;
 	int kernal_length;
 	Vector<double[][]> kernals;
+	double bias[];
 	int num_plate;
-	public Layer(int num_plate, int kernal_length){
+	int input_size;
+	int pooling_length;
+	
+	public Layer(int num_plate, int kernal_length, int pooling_length, int input_size){
 		plates = new Plate[num_plate];
+		this.pooling_length = pooling_length;
+		this.input_size = input_size;
 		this.kernal_length = kernal_length;
 		this.num_plate = num_plate;
+		bias = new double[num_plate];
 		
 		// init kernals
 		Vector<double[][]> kernals = new Vector<double[][]>();
@@ -462,32 +481,39 @@ class Layer{
 			double[][] kernal = new double[kernal_length][kernal_length];
 			for(int i = 0; i < kernal_length; i++){
 				for(int j = 0; j < kernal_length; j++){
-					kernal[i][j] = getRandom(kernal_length*kernal_length,1);
+					kernal[i][j] = getRandom(kernal_length*kernal_length+1,1);
 				}
 			}
 			kernals.add(kernal);
 		}
-		int Clayer_length = Lab3.imageSize-(kernal_length/2)*2;
+		
+		// init bias
+		for(int i = 0; i < bias.length; i++){
+			bias[i] = getRandom(kernal_length*kernal_length+1,1);
+		}
+		
+		// Edit  this is not image size
+		int Clayer_length = input_size-kernal_length+1;
 		
 		for(int i = 0; i < num_plate; i++){
 			plates[i] = new Plate(Clayer_length, kernals.get(i),kernal_length);
 		}
 		
 	}
-	// pass in one image
-	public void getOutput(Vector<double[][]> input){	
+	// pass in one image //EDIT
+	public Vector<double[][]> getOutput(Vector<double[][]> input){	
 
 		int start = kernal_length/2;
-		int end = Lab3.imageSize-kernal_length/2-1;
+		int end = input_size-kernal_length/2-1;
 
 		// for all kernals
 		for(int index = 0; index < kernals.size(); index++){
 			double[][] kernal = kernals.get(index);
 
-			
+			// for all plates in the input layer
 			for(int index_input = 0; index_input< input.size(); index_input++){
-				for(int i = 0; i < Lab3.imageSize-kernal_length+1; i++){
-					for(int j = 0; j < Lab3.imageSize-kernal_length+1; j++){
+				for(int i = 0; i < input_size-kernal_length+1; i++){
+					for(int j = 0; j < input_size-kernal_length+1; j++){
 						// multiply
 						for(int ki = 0; ki < kernal_length; ki++){
 							for(int kj = 0; kj < kernal_length; kj++){
@@ -497,15 +523,43 @@ class Layer{
 					}
 				}
 			}
+			
+			//EDIT 2  activation function
+			for(int i = 0; i < input_size-kernal_length+1; i++){
+				for(int j = 0; j < input_size-kernal_length+1; j++){
+						plates[index].matrix1[i][j] = Afunc.rectify(plates[index].matrix1[i][j]+(bias[index]*-1));
+				}
+			}
 		}
 		
 		for(int i = 0; i < num_plate; i++){
-			plates[i].output();
+			plates[i].output(pooling_length);
 			output_layer.add(plates[i].matrix2);
+		}
+		return output_layer;
+		
+	}
+	
+	
+	public Vector<double[][]> flat_backward(Vector<double[][]> delta, Vector<double[][]> last_output){
+		// to calculate delta k first
+		
+		
+		for(int i = 0; i < plates.length; i++){
+			double [][] local_delta = new double [plates[i].matrix1.length][plates[i].matrix1.length];
+			for(int j = 0; j < plates[i].useAsMax.length;j++){
+				for(int k = 0; k < plates[i].useAsMax.length;k++){
+					if(plates[i].useAsMax[j][k] == true){
+						local_delta[j][k] = delta.get(i)[j/pooling_length][k/pooling_length];
+					}
+				}
+			}
+			
+			
+			
 		}
 		
 	}
-		
 
 
 	
@@ -516,9 +570,18 @@ class Layer{
 	}
 
 
-
-
 }
+
+//Edit 
+class Afunc{
+	public static double sigmoid(double in){
+		return 1/(1+Math.pow(Math.E, (in*-1)));
+	}
+	public static double rectify(double in){
+		return Math.max(0, in);
+	}
+}
+
 
 class Plate{
 	double[][] matrix1;
@@ -540,8 +603,7 @@ class Plate{
 		
 	}
 	
-	public void output(){
-		int len = 2;
+	public void output(int len){
 		int newLength = matrix1.length/len;
 		dropout2 = new boolean[newLength][newLength];
 		
