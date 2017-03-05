@@ -408,18 +408,18 @@ public class Lab3 {
 
 
 	private static int trainDeep(Vector<Vector<Double>> trainFeatureVectors, Vector<Vector<Double>> tuneFeatureVectors,	Vector<Vector<Double>> testFeatureVectors) {
-		
+
 		int kernal_length1 = 5;
 		int pooling_length1 = 2;
 		Layer C1_layer = new Layer(20,kernal_length1,pooling_length1,imageSize);
 		int secondLayerSize = (imageSize-kernal_length1+1)/pooling_length1;
 		Layer C2_layer = new Layer(20,5,2,secondLayerSize);
-		
+
 		Vector<double[][]> output_layer = new Vector<double[][]>();
-		
+
 		// For every picture (only gray)
 		for(int i = 0; i < trainFeatureVectors.size(); i++){
-			
+
 			// forward
 			Vector<double[][]> v = new Vector<double[][]>();
 			double[][] input = transform(trainFeatureVectors.get(i));
@@ -427,17 +427,99 @@ public class Lab3 {
 			//edit 1
 			Vector<double[][]> temp = C1_layer.getOutput(v);
 			output_layer =  C2_layer.getOutput(temp);
-			
+
 			//temp_function(output_layer);
-			
+
 			// TODO backward
-			Vector<double[][]> last_delta = null;
-			Vector<double[][]> second_delta = C2_layer.flat_backward(last_delta, C1_layer.output_layer);
-			C1_layer.backward(second_delta, v);
+			Vector<double[][]> rhs = null;
+			backward(C1_layer, C2_layer, rhs, v);
 		}
-		
+
 		return -1;
 	}
+
+	public static void backward(Layer C1_layer, Layer C2_layer, Vector<double[][]> rhs, Vector<double[][]> v){
+
+		// step 1
+		Vector<double[][]> deltas_1 = new Vector<double[][]>();
+		for(int i = 0; i < C2_layer.plates.length; i++){
+			double [][] local_delta = new double [C2_layer.plates[i].matrix1.length][C2_layer.plates[i].matrix1.length];
+			for(int j = 0; j < C2_layer.plates[i].useAsMax.length;j++){
+				for(int k = 0; k < C2_layer.plates[i].useAsMax.length;k++){
+					if(C2_layer.plates[i].useAsMax[j][k] == true){
+						local_delta[j][k] = ((C2_layer.plates[i].inactivated[j][k]>0)?1:0)*rhs.get(i)[j/C2_layer.pooling_length][k/C2_layer.pooling_length];
+					}
+				}
+			}
+			deltas_1.add(local_delta);
+		}
+
+		// step 2
+		Vector<double[][]> deltas_2 = new Vector<double[][]>();
+		Vector<double[][]> mhs = new Vector<double[][]>();
+		for(int i = 0; i < C1_layer.plates.length; i++){
+			double [][] local_delta = new double [C1_layer.plates[i].matrix1.length][C1_layer.plates[i].matrix1.length];
+			int len = C1_layer.plates[0].matrix2.length;
+			double[][] mhs_matrix = new double[len][len];
+			for(int j = 0; j < C1_layer.plates[i].matrix2.length-C1_layer.kernal_length+1; j++){
+				for(int k = 0 ; k < C1_layer.plates[i].matrix2.length-C1_layer.kernal_length+1; k++){
+
+					for(int ki = 0; ki < C1_layer.kernal_length; ki++){
+						for(int kj = 0; kj < C1_layer.kernal_length; kj++){
+							mhs_matrix[j][k] +=  deltas_1.get(i)[j][k] * C1_layer.kernals.get(i)[ki][kj];
+						}
+					}
+					mhs_matrix[j][k] += C1_layer.bias[i]*deltas_1.get(i)[j][k];
+
+				}
+			}
+			for(int j = 0;j<C1_layer.plates[i].useAsMax.length;j++){
+				for(int k = 0; k< C1_layer.plates[i].useAsMax.length;k++){
+					if(C1_layer.plates[i].useAsMax[j][k] == true){
+						local_delta[j][k] = mhs_matrix[j/C1_layer.pooling_length][k/C1_layer.pooling_length] * ((C1_layer.plates[i].inactivated[j][k]>0)?1:0);
+					}
+				}
+			}
+			deltas_2.add(local_delta);
+		}
+
+		// update weight 1
+		for(int i = 0; i < deltas_2.size(); i++){
+			for(int j = 0; j < C1_layer.plates.length;j++){
+				// ai aj controls matrix2's index
+				for(int ai = 0; ai < C1_layer.plates[j].matrix2.length-C2_layer.kernal_length+1; ai++){
+					for(int aj = 0; aj < C1_layer.plates[j].matrix2.length-C2_layer.kernal_length+1; aj++){
+						// ki kj controls window's index
+						for(int ki = 0; ki < C2_layer.kernal_length; ki++){
+							for(int kj = 0; kj < C2_layer.kernal_length; kj++){
+								C2_layer.plates[i].kernal[ki][kj] += 0.1*deltas_2.get(i)[ai][aj]*C1_layer.plates[j].matrix2[ai+ki][aj+kj];
+							}
+						}
+
+					}
+
+				}
+			}
+		}
+
+		// update weight 2
+		for(int i = 0; i < deltas_1.size(); i++){
+			for(int j = 0; j < v.size(); j++){
+				
+				for(int ai = 0; ai < v.get(j).length - C1_layer.kernal_length+1; ai++){
+					for(int aj = 0; aj < v.get(j).length - C1_layer.kernal_length+1; aj++){
+						
+						for(int ki = 0; ki < C1_layer.kernal_length; ki++){
+							for(int kj = 0; kj < C1_layer.kernal_length; kj++){
+								C1_layer.plates[i].kernal[ki][kj] += 0.1*deltas_1.get(i)[ai][aj]*v.get(j)[ai+ki][aj+kj];
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 
 	private static double[][] transform(Vector<Double> v){
 		double[][] ret = new double[imageSize][imageSize];
@@ -466,7 +548,7 @@ class Layer{
 	int num_plate;
 	int input_size;
 	int pooling_length;
-	
+
 	public Layer(int num_plate, int kernal_length, int pooling_length, int input_size){
 		plates = new Plate[num_plate];
 		this.pooling_length = pooling_length;
@@ -474,7 +556,7 @@ class Layer{
 		this.kernal_length = kernal_length;
 		this.num_plate = num_plate;
 		bias = new double[num_plate];
-		
+
 		// init kernals
 		Vector<double[][]> kernals = new Vector<double[][]>();
 		for(int index = 0; index < num_plate; index++){
@@ -486,19 +568,19 @@ class Layer{
 			}
 			kernals.add(kernal);
 		}
-		
+
 		// init bias
 		for(int i = 0; i < bias.length; i++){
 			bias[i] = getRandom(kernal_length*kernal_length+1,1);
 		}
-		
+
 		// Edit  this is not image size
 		int Clayer_length = input_size-kernal_length+1;
-		
+
 		for(int i = 0; i < num_plate; i++){
 			plates[i] = new Plate(Clayer_length, kernals.get(i),kernal_length);
 		}
-		
+
 	}
 	// pass in one image //EDIT
 	public Vector<double[][]> getOutput(Vector<double[][]> input){	
@@ -523,46 +605,31 @@ class Layer{
 					}
 				}
 			}
-			
+
+
 			//EDIT 2  activation function
 			for(int i = 0; i < input_size-kernal_length+1; i++){
 				for(int j = 0; j < input_size-kernal_length+1; j++){
-						plates[index].matrix1[i][j] = Afunc.rectify(plates[index].matrix1[i][j]+(bias[index]*-1));
+					plates[index].inactivated[i][j] = plates[index].matrix1[i][j]+(bias[index]*-1);
+					plates[index].matrix1[i][j] = Afunc.rectify(plates[index].matrix1[i][j]+(bias[index]*-1));
+
 				}
 			}
 		}
-		
+
 		for(int i = 0; i < num_plate; i++){
 			plates[i].output(pooling_length);
 			output_layer.add(plates[i].matrix2);
 		}
 		return output_layer;
-		
-	}
-	
-	
-	public Vector<double[][]> flat_backward(Vector<double[][]> delta, Vector<double[][]> last_output){
-		// to calculate delta k first
-		
-		
-		for(int i = 0; i < plates.length; i++){
-			double [][] local_delta = new double [plates[i].matrix1.length][plates[i].matrix1.length];
-			for(int j = 0; j < plates[i].useAsMax.length;j++){
-				for(int k = 0; k < plates[i].useAsMax.length;k++){
-					if(plates[i].useAsMax[j][k] == true){
-						local_delta[j][k] = delta.get(i)[j/pooling_length][k/pooling_length];
-					}
-				}
-			}
-			
-			
-			
-		}
-		
+
 	}
 
 
-	
+
+
+
+
 
 	private double getRandom(int fanin, int fanout){
 		double range = Math.max(Double.MIN_VALUE, 4.0 / Math.sqrt(6.0 * (fanin + fanout)));
@@ -586,6 +653,7 @@ class Afunc{
 class Plate{
 	double[][] matrix1;
 	double[][] matrix2;
+	double[][] inactivated;
 	double[][] kernal;
 	boolean[][] useAsMax;
 	boolean[][] dropout1;
@@ -593,20 +661,21 @@ class Plate{
 
 	public Plate(int input_length, double[][] kernal, int kernal_length){
 		matrix1 = new double[input_length][input_length];
+		inactivated = new double[input_length][input_length];
 		this.kernal = kernal;
 		dropout1 = new boolean[input_length][input_length];
-		
+
 		useAsMax = new boolean[input_length][input_length];
-		
-		
-		
-		
+
+
+
+
 	}
-	
+
 	public void output(int len){
 		int newLength = matrix1.length/len;
 		dropout2 = new boolean[newLength][newLength];
-		
+
 		for(int i = 0; i < dropout1.length;i++){
 			for(int j = 0; j < dropout1.length;j++){
 				dropout1[i][j] = Math.random()<0.5? false :true; 
@@ -617,12 +686,12 @@ class Plate{
 				dropout2[i][j] = Math.random()<0.5? false :true; 
 			}
 		}
-		
+
 		matrix2= maxPooling(matrix1,len,false);
 	}
 
-	
-	
+
+
 	private double[][] maxPooling(double[][] matrix, int len, boolean overlap){
 		if(overlap){
 			int newLength = matrix.length-len+1;
@@ -646,7 +715,7 @@ class Plate{
 			return newMatrix;
 		}		
 	}
-	
+
 
 	private double maxOfMatrix(double[][] matrix, int i, int j, int len){
 		double max = Double.MIN_VALUE;
