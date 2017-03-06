@@ -433,8 +433,8 @@ public class Lab3 {
 		// fully connected layer
 
 		int numLinks = (secondLayerSize-kernal_length1+1)/pooling_length1 * ((secondLayerSize-kernal_length1+1)/pooling_length1)*20;
-		FCLayer hiddenLayer = new FCLayer(numHU,numLinks);
-		FCLayer outLayer = new FCLayer(numOut,numHU);
+		FCLayer hiddenLayer = new FCLayer(numHU,numLinks+1);
+		FCLayer outLayer = new FCLayer(numOut,numHU+1);
 
 		Vector<double[][]> output_layer = new Vector<double[][]>();
 
@@ -510,11 +510,15 @@ public class Lab3 {
 		double[] errorWRTOutput = new double[numOut];
 		for(int i = 0;i<numOut;i++){
 			errorWRTOutput[i] = outLayer.getNeurons(i).pdErrorWRTNetout(targets[i]);
-			double[] UpdatedOutWeights = new double[numHU];
-			double biasChange = errorWRTOutput[i]*learningRate;
-			outLayer.getNeurons(i).updateBias(biasChange);
-			for (int j = 0; j < numHU; j++) {
-				double errorWRTweight = errorWRTOutput[i] * hiddenOut[j];
+			double[] UpdatedOutWeights = new double[numHU+1];
+
+			for (int j = 0; j < numHU+1; j++) {
+				double errorWRTweight;
+				if(j == numHU){
+					errorWRTweight = errorWRTOutput[i]* outLayer.getNeurons(i).bias;
+				}else{
+					errorWRTweight = errorWRTOutput[i] * hiddenOut[j];
+				}
 				// get previous change in weight
 				//	double v = outLayer.getNeurons(i).getV(j);
 
@@ -544,15 +548,21 @@ public class Lab3 {
 			}
 			//hiddenLayer.getNeurons(i).HDErrorWRTOutput(tmp);
 			errorWRTHiddenOut[i] = tmp * hiddenLayer.getNeurons(i).pdOutputWRTNetout();
-			double biasChange = errorWRTHiddenOut[i]*learningRate;
-			hiddenLayer.getNeurons(i).updateBias(biasChange);
-			double[] UpdatedOutWeights = new double[inputs.length];
+
+			double[] UpdatedOutWeights = new double[inputs.length+1];
 			// update hidden FCLayer weights
 
-			for (int k = 0; k < inputs.length; k++) {
+			for (int k = 0; k < inputs.length + 1; k++) {
 				// get previous change in weight
 				//double v = hiddenLayer.getNeurons(i).getV(k);
-				double errorWRTweight = errorWRTHiddenOut[i] * inputs[k];
+				
+				double errorWRTweight;
+				if(k == inputs.length){
+					errorWRTweight = errorWRTHiddenOut[i]* hiddenLayer.getNeurons(i).bias;
+				}else{
+					errorWRTweight = errorWRTHiddenOut[i] * inputs[k];
+				}
+
 
 				UpdatedOutWeights[k] = (hiddenLayer.getNeurons(i).getWeight(k)
 						- errorWRTweight * learningRate + momentum * hiddenLayer.getNeurons(i).getV(k)
@@ -702,5 +712,3 @@ class Afunc{
 		return Math.max(0, in);
 	}
 }
-
-
