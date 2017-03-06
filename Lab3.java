@@ -41,7 +41,7 @@ public class Lab3 {
 
 	private static int kernal_length = 5;
 
-	public static double learningRate = 0.01;
+	public static double learningRate = 0.1;
 	public static double momentum = -0.01;
 	public static double parameter = 0.00001;
 	public static int numHU = 100;
@@ -639,7 +639,7 @@ public class Lab3 {
 						// ki kj controls window's index
 						for(int ki = 0; ki < C2_layer.kernal_length; ki++){
 							for(int kj = 0; kj < C2_layer.kernal_length; kj++){
-								C2_layer.plates[i].kernal[ki][kj] += 0.1*deltas_2.get(i)[ai][aj]*C1_layer.plates[j].matrix2[ai+ki][aj+kj];
+								C2_layer.plates[i].kernal[ki][kj] += learningRate*deltas_2.get(i)[ai][aj]*C1_layer.plates[j].matrix2[ai+ki][aj+kj];
 							}
 						}
 
@@ -657,7 +657,7 @@ public class Lab3 {
 					for(int aj = 0; aj < v.get(j).length - C1_layer.kernal_length+1; aj++){
 						for(int ki = 0; ki < C1_layer.kernal_length; ki++){
 							for(int kj = 0; kj < C1_layer.kernal_length; kj++){
-								C1_layer.plates[i].kernal[ki][kj] += 0.1*deltas_1.get(i)[ai][aj]*v.get(j)[ai+ki][aj+kj];
+								C1_layer.plates[i].kernal[ki][kj] += learningRate*deltas_1.get(i)[ai][aj]*v.get(j)[ai+ki][aj+kj];
 							}
 						}
 					}
