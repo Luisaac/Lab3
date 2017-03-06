@@ -23,7 +23,7 @@ import javax.imageio.ImageIO;
 
 public class Lab3 {
 
-	public static int     imageSize = 8; // Images are imageSize x imageSize.  The provided data is 128x128, but this can be resized by setting this value (or passing in an argument).  
+	public static int     imageSize = 32; // Images are imageSize x imageSize.  The provided data is 128x128, but this can be resized by setting this value (or passing in an argument).  
 	// You might want to resize to 8x8, 16x16, 32x32, or 64x64; this can reduce your network size and speed up debugging runs.
 	// ALL IMAGES IN A TRAINING RUN SHOULD BE THE *SAME* SIZE.
 	private static enum    Category { airplanes, butterfly, flower, grand_piano, starfish, watch };  // We'll hardwire these in, but more robust code would not do so.
@@ -40,6 +40,12 @@ public class Lab3 {
 	private static int    maxEpochs = 1000; // Feel free to set to a different value.
 
 	private static int kernal_length = 5;
+
+	public static double learningRate = 0.01;
+	public static double momentum = -0.01;
+	public static double parameter = 0.00001;
+	public static int numHU = 100;
+	public static int numOut = 6;
 
 	public static void main(String[] args) {
 		String trainDirectory = "images/trainset/";
@@ -83,6 +89,8 @@ public class Lab3 {
 		// We are providing code that converts images to feature vectors.  Feel free to discard or modify.
 		start = System.currentTimeMillis();
 		trainANN(trainset, tuneset, testset);
+
+
 		System.out.println("\nTook " + convertMillisecondsToTimeSpan(System.currentTimeMillis() - start) + " to train.");
 
 	}
@@ -178,7 +186,11 @@ public class Lab3 {
 
 		if      ("perceptrons".equals(modelToUse)) return trainPerceptrons(trainFeatureVectors, tuneFeatureVectors, testFeatureVectors); // This is optional.  Either comment out this line or just right a 'dummy' function.
 		else if ("oneLayer".equals(   modelToUse)) return trainOneHU(      trainFeatureVectors, tuneFeatureVectors, testFeatureVectors); // This is optional.  Ditto.
-		else if ("deep".equals(       modelToUse)) return trainDeep(       trainFeatureVectors, tuneFeatureVectors, testFeatureVectors);
+		else if ("deep".equals(       modelToUse)){
+			permute(trainFeatureVectors);
+			trainDeep(trainFeatureVectors, 0);
+			trainDeep(testFeatureVectors, 1);
+		}
 		return -1;
 	}
 
@@ -407,18 +419,36 @@ public class Lab3 {
 	////////////////////////////////////////////////////////////////////////////////////////////////  DEEP ANN Code
 
 
-	private static int trainDeep(Vector<Vector<Double>> trainFeatureVectors, Vector<Vector<Double>> tuneFeatureVectors,	Vector<Vector<Double>> testFeatureVectors) {
+	private static int trainDeep(Vector<Vector<Double>> trainFeatureVectors, int type) {
 
+		
+		double[][] confusion = new double[6][6];
 		int kernal_length1 = 5;
 		int pooling_length1 = 2;
 		Layer C1_layer = new Layer(20,kernal_length1,pooling_length1,imageSize);
 		int secondLayerSize = (imageSize-kernal_length1+1)/pooling_length1;
 		Layer C2_layer = new Layer(20,5,2,secondLayerSize);
 
+		int correctLabels = 0;
+		// fully connected layer
+
+		int numLinks = (secondLayerSize-kernal_length1+1)/pooling_length1 * ((secondLayerSize-kernal_length1+1)/pooling_length1)*20;
+		FCLayer hiddenLayer = new FCLayer(numHU,numLinks);
+		FCLayer outLayer = new FCLayer(numOut,numHU);
+
 		Vector<double[][]> output_layer = new Vector<double[][]>();
 
+		System.out.println("Convolutional layer: "+imageSize+" "+secondLayerSize+" "+numLinks +" "+ trainFeatureVectors.size() +"vector length: "+ trainFeatureVectors.get(0).size() + " "+ inputVectorSize);
+	
+		int[] correct = new int[6];
+		int[] error = new int[6];
+		
 		// For every picture (only gray)
 		for(int i = 0; i < trainFeatureVectors.size(); i++){
+			System.out.println(i);
+			//get labels
+			double label = trainFeatureVectors.get(i).get(inputVectorSize-1);
+			double[] targets = getLabels(label);
 
 			// forward
 			Vector<double[][]> v = new Vector<double[][]>();
@@ -428,20 +458,137 @@ public class Lab3 {
 			Vector<double[][]> temp = C1_layer.getOutput(v);
 			output_layer =  C2_layer.getOutput(temp);
 
-			//temp_function(output_layer);
+			double[] inputsFCLayer = C2_layer.output1D();
 
-			// TODO backward
-			Vector<double[][]> rhs = null;
-			backward(C1_layer, C2_layer, rhs, v);
+			double[] hiddenOut = hiddenLayer.feedForward(inputsFCLayer);
+			double[] outLayer_outputs = outLayer.feedForward(hiddenOut);
+
+			// backward only for train
+			if(type == 0){
+				Vector<double[][]> rhs = fullConnectedBackward(hiddenLayer, outLayer, inputsFCLayer, targets,C2_layer);	
+				backward(C1_layer, C2_layer, rhs, v);
+			}
+
+
+			// get the maximum value in the outputs
+			//TODO softmax
+			double max = Double.NEGATIVE_INFINITY;
+			int maxIndex = 0;
+
+			for (int m = 0; m < numOut; m++) {
+				if (outLayer_outputs[m] > max) {
+					max = outLayer_outputs[m];
+					maxIndex = m;
+				}
+			}
+
+			if (targets[maxIndex] == 1.0){
+				correctLabels++;
+			}
+			System.out.println("Predict: "+ maxIndex +" Correct: " + label);
+			confusion[(int)label][maxIndex]++;
+			
+			
 		}
+		System.out.println("Accuracy = " + correctLabels/(double)trainFeatureVectors.size());
+		
+		for(int i = 0; i < 6; i++){
+			for(int j = 0; j < 6 ;j++){
+				System.out.print(confusion[i][j]+"\t");
+			}
+			System.out.println();
+		}
+		
 
 		return -1;
+	}
+
+	public static Vector<double[][]> fullConnectedBackward(FCLayer hiddenLayer, FCLayer outLayer,double[] inputs, double[] targets, Layer C2_layer){
+
+		double[] hiddenOut = hiddenLayer.getOutputs();
+		//backpropagation
+		double[] errorWRTOutput = new double[numOut];
+		for(int i = 0;i<numOut;i++){
+			errorWRTOutput[i] = outLayer.getNeurons(i).pdErrorWRTNetout(targets[i]);
+			double[] UpdatedOutWeights = new double[numHU];
+			double biasChange = errorWRTOutput[i]*learningRate;
+			outLayer.getNeurons(i).updateBias(biasChange);
+			for (int j = 0; j < numHU; j++) {
+				double errorWRTweight = errorWRTOutput[i] * hiddenOut[j];
+				// get previous change in weight
+				//	double v = outLayer.getNeurons(i).getV(j);
+
+				UpdatedOutWeights[j] = (outLayer.getNeurons(i).getWeight(j)
+						- errorWRTweight * learningRate + momentum * outLayer.getNeurons(i).getV(j)
+						- parameter * learningRate * outLayer.getNeurons(i).getWeight(j));
+				//				double change = -errorWRTweight * learningRate
+				//						- parameter * learningRate * outLayer.getNeurons(i).getWeight(j)
+				//						+ momentum * outLayer.getNeurons(i).getV(j);
+				//				outLayer.getNeurons(i).setV(change, j);
+				//
+				//				// save current weight change
+				//				outLayer.getNeurons(i).setV(errorWRTweight, j);
+			}
+			outLayer.getNeurons(i).updateWeights(UpdatedOutWeights);
+		}
+
+		// update hidden
+		// hidden FCLayer derivatives
+		double[] errorWRTHiddenOut = new double[numHU];
+
+		for (int i = 0; i < numHU; i++) {
+			// derivatives of error wrt output FCLayers
+			double tmp = 0.0;
+			for (int j = 0; j < numOut; j++) {
+				tmp += errorWRTOutput[j] * outLayer.getNeurons(j).getWeight(i);
+			}
+			//hiddenLayer.getNeurons(i).HDErrorWRTOutput(tmp);
+			errorWRTHiddenOut[i] = tmp * hiddenLayer.getNeurons(i).pdOutputWRTNetout();
+			double biasChange = errorWRTHiddenOut[i]*learningRate;
+			hiddenLayer.getNeurons(i).updateBias(biasChange);
+			double[] UpdatedOutWeights = new double[inputs.length];
+			// update hidden FCLayer weights
+
+			for (int k = 0; k < inputs.length; k++) {
+				// get previous change in weight
+				//double v = hiddenLayer.getNeurons(i).getV(k);
+				double errorWRTweight = errorWRTHiddenOut[i] * inputs[k];
+
+				UpdatedOutWeights[k] = (hiddenLayer.getNeurons(i).getWeight(k)
+						- errorWRTweight * learningRate + momentum * hiddenLayer.getNeurons(i).getV(k)
+						- parameter * learningRate * hiddenLayer.getNeurons(i).getWeight(k));
+				//				double change = -errorWRTweight * learningRate
+				//						- parameter * learningRate * hiddenLayer.getNeurons(i).getWeight(k)
+				//						+ momentum * hiddenLayer.getNeurons(i).getV(k);
+				//				hiddenLayer.getNeurons(i).setV(change, k);
+				//				hiddenLayer.getNeurons(i).setV(errorWRTweight, k);
+
+			}
+			hiddenLayer.getNeurons(i).updateWeights(UpdatedOutWeights);
+		}
+
+		Vector<double[][]> errorWRTInput = new Vector<double[][]>();
+		int len = C2_layer.plates[0].matrix2.length;
+		for(int k = 0; k<C2_layer.num_plate;k++){
+			double[][] delta = new double[len][len];
+			for(int i =0;i<len;i++){
+				for(int m =0;m<len;m++){
+					double tmp = 0.0;
+					for(int j = 0;j<numHU;j++){
+						tmp += errorWRTHiddenOut[j] * hiddenLayer.getNeurons(j).getWeight(m+i*len+len*len*k);
+					}
+					delta[i][m] = tmp;
+				}
+			}
+			errorWRTInput.add(delta);
+		}
+		return errorWRTInput;
 	}
 
 	public static void backward(Layer C1_layer, Layer C2_layer, Vector<double[][]> rhs, Vector<double[][]> v){
 
 		// step 1
-		Vector<double[][]> deltas_1 = new Vector<double[][]>();
+		Vector<double[][]> deltas_2 = new Vector<double[][]>();
 		for(int i = 0; i < C2_layer.plates.length; i++){
 			double [][] local_delta = new double [C2_layer.plates[i].matrix1.length][C2_layer.plates[i].matrix1.length];
 			for(int j = 0; j < C2_layer.plates[i].useAsMax.length;j++){
@@ -451,11 +598,11 @@ public class Lab3 {
 					}
 				}
 			}
-			deltas_1.add(local_delta);
+			deltas_2.add(local_delta);
 		}
 
 		// step 2
-		Vector<double[][]> deltas_2 = new Vector<double[][]>();
+		Vector<double[][]> deltas_1 = new Vector<double[][]>();
 		Vector<double[][]> mhs = new Vector<double[][]>();
 		for(int i = 0; i < C1_layer.plates.length; i++){
 			double [][] local_delta = new double [C1_layer.plates[i].matrix1.length][C1_layer.plates[i].matrix1.length];
@@ -466,10 +613,10 @@ public class Lab3 {
 
 					for(int ki = 0; ki < C1_layer.kernal_length; ki++){
 						for(int kj = 0; kj < C1_layer.kernal_length; kj++){
-							mhs_matrix[j][k] +=  deltas_1.get(i)[j][k] * C1_layer.kernals.get(i)[ki][kj];
+							mhs_matrix[j][k] +=  deltas_2.get(i)[j][k] * C1_layer.kernals.get(i)[ki][kj];
 						}
 					}
-					mhs_matrix[j][k] += C1_layer.bias[i]*deltas_1.get(i)[j][k];
+					mhs_matrix[j][k] += C1_layer.bias[i]*deltas_2.get(i)[j][k];
 
 				}
 			}
@@ -480,7 +627,7 @@ public class Lab3 {
 					}
 				}
 			}
-			deltas_2.add(local_delta);
+			deltas_1.add(local_delta);
 		}
 
 		// update weight 1
@@ -505,10 +652,9 @@ public class Lab3 {
 		// update weight 2
 		for(int i = 0; i < deltas_1.size(); i++){
 			for(int j = 0; j < v.size(); j++){
-				
+
 				for(int ai = 0; ai < v.get(j).length - C1_layer.kernal_length+1; ai++){
 					for(int aj = 0; aj < v.get(j).length - C1_layer.kernal_length+1; aj++){
-						
 						for(int ki = 0; ki < C1_layer.kernal_length; ki++){
 							for(int kj = 0; kj < C1_layer.kernal_length; kj++){
 								C1_layer.plates[i].kernal[ki][kj] += 0.1*deltas_1.get(i)[ai][aj]*v.get(j)[ai+ki][aj+kj];
@@ -531,7 +677,13 @@ public class Lab3 {
 		return ret;
 	}
 
-
+	// one of N encoding
+	public static double[] getLabels(double label){
+		// six categories
+		double[] labels = new double[6];
+		labels[(int)label] = 1;
+		return labels;
+	}
 
 	////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -539,105 +691,7 @@ public class Lab3 {
 
 
 
-class Layer{
-	Plate[] plates;
-	Vector<double[][]> output_layer;
-	int kernal_length;
-	Vector<double[][]> kernals;
-	double bias[];
-	int num_plate;
-	int input_size;
-	int pooling_length;
 
-	public Layer(int num_plate, int kernal_length, int pooling_length, int input_size){
-		plates = new Plate[num_plate];
-		this.pooling_length = pooling_length;
-		this.input_size = input_size;
-		this.kernal_length = kernal_length;
-		this.num_plate = num_plate;
-		bias = new double[num_plate];
-
-		// init kernals
-		Vector<double[][]> kernals = new Vector<double[][]>();
-		for(int index = 0; index < num_plate; index++){
-			double[][] kernal = new double[kernal_length][kernal_length];
-			for(int i = 0; i < kernal_length; i++){
-				for(int j = 0; j < kernal_length; j++){
-					kernal[i][j] = getRandom(kernal_length*kernal_length+1,1);
-				}
-			}
-			kernals.add(kernal);
-		}
-
-		// init bias
-		for(int i = 0; i < bias.length; i++){
-			bias[i] = getRandom(kernal_length*kernal_length+1,1);
-		}
-
-		// Edit  this is not image size
-		int Clayer_length = input_size-kernal_length+1;
-
-		for(int i = 0; i < num_plate; i++){
-			plates[i] = new Plate(Clayer_length, kernals.get(i),kernal_length);
-		}
-
-	}
-	// pass in one image //EDIT
-	public Vector<double[][]> getOutput(Vector<double[][]> input){	
-
-		int start = kernal_length/2;
-		int end = input_size-kernal_length/2-1;
-
-		// for all kernals
-		for(int index = 0; index < kernals.size(); index++){
-			double[][] kernal = kernals.get(index);
-
-			// for all plates in the input layer
-			for(int index_input = 0; index_input< input.size(); index_input++){
-				for(int i = 0; i < input_size-kernal_length+1; i++){
-					for(int j = 0; j < input_size-kernal_length+1; j++){
-						// multiply
-						for(int ki = 0; ki < kernal_length; ki++){
-							for(int kj = 0; kj < kernal_length; kj++){
-								plates[index].matrix1[i][j] += input.get(index_input)[i+ki][j+kj]*kernal[ki][kj];
-							}
-						}
-					}
-				}
-			}
-
-
-			//EDIT 2  activation function
-			for(int i = 0; i < input_size-kernal_length+1; i++){
-				for(int j = 0; j < input_size-kernal_length+1; j++){
-					plates[index].inactivated[i][j] = plates[index].matrix1[i][j]+(bias[index]*-1);
-					plates[index].matrix1[i][j] = Afunc.rectify(plates[index].matrix1[i][j]+(bias[index]*-1));
-
-				}
-			}
-		}
-
-		for(int i = 0; i < num_plate; i++){
-			plates[i].output(pooling_length);
-			output_layer.add(plates[i].matrix2);
-		}
-		return output_layer;
-
-	}
-
-
-
-
-
-
-
-	private double getRandom(int fanin, int fanout){
-		double range = Math.max(Double.MIN_VALUE, 4.0 / Math.sqrt(6.0 * (fanin + fanout)));
-		return (2.0 * Lab3.random() - 1.0) * range;
-	}
-
-
-}
 
 //Edit 
 class Afunc{
@@ -650,88 +704,3 @@ class Afunc{
 }
 
 
-class Plate{
-	double[][] matrix1;
-	double[][] matrix2;
-	double[][] inactivated;
-	double[][] kernal;
-	boolean[][] useAsMax;
-	boolean[][] dropout1;
-	boolean[][] dropout2;
-
-	public Plate(int input_length, double[][] kernal, int kernal_length){
-		matrix1 = new double[input_length][input_length];
-		inactivated = new double[input_length][input_length];
-		this.kernal = kernal;
-		dropout1 = new boolean[input_length][input_length];
-
-		useAsMax = new boolean[input_length][input_length];
-
-
-
-
-	}
-
-	public void output(int len){
-		int newLength = matrix1.length/len;
-		dropout2 = new boolean[newLength][newLength];
-
-		for(int i = 0; i < dropout1.length;i++){
-			for(int j = 0; j < dropout1.length;j++){
-				dropout1[i][j] = Math.random()<0.5? false :true; 
-			}
-		}
-		for(int i = 0; i < dropout2.length;i++){
-			for(int j = 0; j < dropout2.length;j++){
-				dropout2[i][j] = Math.random()<0.5? false :true; 
-			}
-		}
-
-		matrix2= maxPooling(matrix1,len,false);
-	}
-
-
-
-	private double[][] maxPooling(double[][] matrix, int len, boolean overlap){
-		if(overlap){
-			int newLength = matrix.length-len+1;
-			double[][] newMatrix = new double[newLength][newLength];
-			for(int i = 0; i < newLength; i++){
-				for(int j = 0; j < newLength; j++){
-					newMatrix[i][j] = maxOfMatrix(matrix,i,j,len);
-				}
-			}
-			return newMatrix;
-		}
-		else{
-			if(matrix.length%len != 0) return null;
-			int newLength = matrix.length/len;
-			double[][]newMatrix = new double[newLength][newLength];
-			for(int i = 0; i < newLength; i+=len){
-				for(int j = 0; j < newLength; j+=len){
-					newMatrix[i][j] = maxOfMatrix(matrix,i,j,len);
-				}
-			}
-			return newMatrix;
-		}		
-	}
-
-
-	private double maxOfMatrix(double[][] matrix, int i, int j, int len){
-		double max = Double.MIN_VALUE;
-		int i_max = 0;
-		int j_max = 0;
-		for(; i < i+len; i++){
-			for(; j < j+len; j++){
-				if(matrix[i][j]>max){
-					max = matrix[i][j];
-					i_max = i;
-					j_max = j;
-				}
-			}
-		}
-		useAsMax[i_max][j_max] = true;
-		return max;
-	}
-
-}
