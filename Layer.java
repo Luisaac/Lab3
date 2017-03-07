@@ -6,6 +6,7 @@ public class Layer{
 	int kernal_length;
 	Vector<double[][]> kernals;
 	double bias[];
+	double biasWeight[];
 	int num_plate;
 	int input_size;
 	int pooling_length;
@@ -13,15 +14,16 @@ public class Layer{
 
 	public Layer(int num_plate, int kernal_length, int pooling_length, int input_size){
 		plates = new Plate[num_plate];
-		output_layer = new Vector<double[][]>();
+		output_layer = new Vector<double[][]>(num_plate);
 		this.pooling_length = pooling_length;
 		this.input_size = input_size;
 		this.kernal_length = kernal_length;
 		this.num_plate = num_plate;
 		bias = new double[num_plate];
+		biasWeight = new double[num_plate];
 		
 		// init kernals
-		this.kernals = new Vector<double[][]>();
+		this.kernals = new Vector<double[][]>(num_plate);
 		for(int index = 0; index < num_plate; index++){
 			double[][] kernal = new double[kernal_length][kernal_length];
 			for(int i = 0; i < kernal_length; i++){
@@ -34,7 +36,8 @@ public class Layer{
 
 		// init bias
 		for(int i = 0; i < bias.length; i++){
-			bias[i] = getRandom(kernal_length*kernal_length+1,1);
+			biasWeight[i] = getRandom(kernal_length*kernal_length+1,1);
+			bias[i] = -0.1;
 		}
 
 		// Edit  this is not image size
@@ -49,8 +52,6 @@ public class Layer{
 	// pass in one image //EDIT
 	public Vector<double[][]> getOutput(Vector<double[][]> input){	
 
-		int start = kernal_length/2;
-		int end = input_size-kernal_length/2-1;
 
 		// for all kernals
 		for(int index = 0; index < kernals.size(); index++){
@@ -74,20 +75,23 @@ public class Layer{
 			//EDIT 2  activation function
 			for(int i = 0; i < input_size-kernal_length+1; i++){
 				for(int j = 0; j < input_size-kernal_length+1; j++){
-					plates[index].inactivated[i][j] = plates[index].matrix1[i][j]+(bias[index]*-1);
-					plates[index].matrix1[i][j] = Afunc.rectify(plates[index].matrix1[i][j]+(bias[index]*-1));
+					double net_out = plates[index].matrix1[i][j]+(biasWeight[index]*bias[index]);
+					plates[index].inactivated[i][j] = net_out;
+					plates[index].matrix1[i][j] = Math.max(0.0, net_out);
 					
 				}
 			}
 		}
 
 		for(int i = 0; i < num_plate; i++){
+			//System.out.println("\n"+i+"plate: ");
 			plates[i].output(pooling_length);
 			output_layer.add(plates[i].matrix2);
 			//convert to 1d
-			for(int m =0;m<plates[i].matrix2.length;m++){
-				for(int n =0;n<plates[i].matrix2[0].length;n++)
-					output1D[n+m*(plates[i].matrix2.length)+ plates[i].matrix2.length*plates[i].matrix2[0].length*i] = plates[i].matrix1[m][n];
+			int len = plates[i].matrix2.length;
+			for(int m =0;m<len;m++){
+				for(int n =0;n<len;n++)
+					output1D[n+m*len+ len*len] = plates[i].matrix1[m][n];
 			}
 		}
 		return output_layer;

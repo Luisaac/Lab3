@@ -21,19 +21,19 @@ class Plate{
 	}
 
 	public void output(int len){
-		int newLength = matrix1.length/len;
-		dropout2 = new boolean[newLength][newLength];
-
-		for(int i = 0; i < dropout1.length;i++){
-			for(int j = 0; j < dropout1.length;j++){
-				dropout1[i][j] = Math.random()<0.5? false :true; 
-			}
-		}
-		for(int i = 0; i < dropout2.length;i++){
-			for(int j = 0; j < dropout2.length;j++){
-				dropout2[i][j] = Math.random()<0.5? false :true; 
-			}
-		}
+//		int newLength = matrix1.length/len;
+//		dropout2 = new boolean[newLength][newLength];
+//
+//		for(int i = 0; i < dropout1.length;i++){
+//			for(int j = 0; j < dropout1.length;j++){
+//				dropout1[i][j] = Math.random()<0.5? false :true; 
+//			}
+//		}
+//		for(int i = 0; i < dropout2.length;i++){
+//			for(int j = 0; j < dropout2.length;j++){
+//				dropout2[i][j] = Math.random()<0.5? false :true; 
+//			}
+//		}
 
 		matrix2= maxPooling(matrix1,len,false);
 	}
@@ -41,18 +41,19 @@ class Plate{
 
 
 	private double[][] maxPooling(double[][] matrix, int len, boolean overlap){
-		if(overlap){
-			int newLength = matrix.length-len+1;
-			double[][] newMatrix = new double[newLength][newLength];
-			for(int i = 0; i < newLength; i++){
-				for(int j = 0; j < newLength; j++){
-					newMatrix[i][j] = maxOfMatrix(matrix,i,j,len);
-				}
-			}
-			return newMatrix;
-		}
-		else{
-			if(matrix.length%len != 0) return null;
+//		if(overlap){
+//			int newLength = matrix.length-len+1;
+//			double[][] newMatrix = new double[newLength][newLength];
+//			for(int i = 0; i < newLength; i++){
+//				for(int j = 0; j < newLength; j++){
+//					newMatrix[i][j] = maxOfMatrix(matrix,i,j,len);
+//				}
+//			}
+//			return newMatrix;
+//		}
+//		else{
+		//if(matrix.length%len != 0) return null;
+			//System.out.println("max index: ");
 			int newLength = matrix.length/len;
 			double[][]newMatrix = new double[newLength][newLength];
 			for(int i = 0; i < matrix.length; i+=len){
@@ -60,28 +61,30 @@ class Plate{
 					newMatrix[i/len][j/len] = maxOfMatrix(matrix,i,j,len);
 				}
 			}
+			
 			return newMatrix;
-		}		
+		//}		
 	}
 
 
 	private double maxOfMatrix(double[][] matrix, int i, int j, int len){
 		double max = Double.MIN_VALUE;
-		int i_max = 0;
-		int j_max = 0;
-		int ilen = i+len;
-		int jlen = j+len;
-		for(; i < ilen; i++){
-			for(; j < jlen; j++){
-				if(matrix[i][j]>max){
-					max = matrix[i][j];
-					i_max = i;
-					j_max = j;
+		int i_max = i;
+		int j_max = j;
+		
+		for(int m = i; m< i+len;m++){
+			for(int n = j; n<j+len;n++){
+				if(matrix[m][n] > max){
+					max = matrix[m][n];
+					i_max = m;
+					j_max = n;					
 				}
 			}
 		}
+		//TODO next image might overwrite values in the previous image
 		useAsMax[i_max][j_max] = true;
 		return max;
 	}
 
 }
+
