@@ -6,6 +6,7 @@ class Plate{
 	boolean[][] useAsMax;
 	boolean[][] dropout1;
 	boolean[][] dropout2;
+	int input_length;
 
 	public Plate(int input_length, double[][] kernal, int kernal_length){
 		matrix1 = new double[input_length][input_length];
@@ -14,7 +15,7 @@ class Plate{
 		dropout1 = new boolean[input_length][input_length];
 
 		useAsMax = new boolean[input_length][input_length];
-
+		this.input_length = input_length;
 
 
 
@@ -35,10 +36,8 @@ class Plate{
 //			}
 //		}
 
-		matrix2= maxPooling(matrix1,len,false);
+		matrix2 = maxPooling(matrix1,len,false);
 	}
-
-
 
 	private double[][] maxPooling(double[][] matrix, int len, boolean overlap){
 //		if(overlap){
@@ -85,6 +84,8 @@ class Plate{
 		useAsMax[i_max][j_max] = true;
 		return max;
 	}
+	
+	
 
 }
 

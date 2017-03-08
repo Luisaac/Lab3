@@ -496,11 +496,12 @@ public class Lab3 {
 			double[] hiddenOut = hiddenLayer.feedForward(inputsFCLayer);
 			double[] outLayer_outputs = outLayer.feedForward(hiddenOut);
 
+			
 			// backward only for train
-			if(type == 0){
-				Vector<double[][]> rhs = fullConnectedBackward(hiddenLayer, outLayer, inputsFCLayer, targets,C2_layer);	
-				backward(C1_layer, C2_layer, rhs, v);
-			}
+//			if(type == 0){
+//				Vector<double[][]> rhs = fullConnectedBackward(hiddenLayer, outLayer, inputsFCLayer, targets,C2_layer);	
+//				backward(C1_layer, C2_layer, rhs, v);
+//			}
 
 
 			// get the maximum value in the outputs
@@ -637,7 +638,7 @@ public class Lab3 {
 		int c1_maxtrix1_len = C1_layer.plates[0].matrix1.length;
 		int c1_marix2_len = C1_layer.plates[0].matrix2.length;
 		// step 1
-		Vector<double[][]> deltas_2 = new Vector<double[][]>();
+		Vector<double[][]> deltas_2 = new Vector<double[][]>(C2_layer.plates.length);
 		for(int i = 0; i < C2_layer.plates.length; i++){
 			System.out.println("\n"+i+" layer count:");
 			int count = 0;
@@ -645,19 +646,22 @@ public class Lab3 {
 			for(int j = 0; j < c2_maxtrix1_len;j++){
 				for(int k = 0; k < c2_maxtrix1_len;k++){
 					if(C2_layer.plates[i].useAsMax[j][k] == true){
-						
+						System.out.println(C2_layer.plates[i].inactivated[j][k]);
 						local_delta[j][k] = ((C2_layer.plates[i].inactivated[j][k]>0)?1:0)*rhs.get(i)[j/C2_layer.pooling_length][k/C2_layer.pooling_length];
 						System.out.println(local_delta[j][k]);
 						count ++;
+						C2_layer.plates[i].useAsMax[j][k] = false;
 					}
 				}
 			}
 			System.out.println(count);
+			
+			
 			deltas_2.add(local_delta);
 		}
 
 		// step 2
-		Vector<double[][]> deltas_1 = new Vector<double[][]>();
+		Vector<double[][]> deltas_1 = new Vector<double[][]>(C1_layer.plates.length);
 		//Vector<double[][]> mhs = new Vector<double[][]>();
 		for(int i = 0; i < C1_layer.plates.length; i++){
 			double [][] local_delta = new double [c1_maxtrix1_len][c1_maxtrix1_len];	
@@ -685,9 +689,11 @@ public class Lab3 {
 				for(int k = 0; k< c1_maxtrix1_len;k++){
 					if(C1_layer.plates[i].useAsMax[j][k] == true){
 						local_delta[j][k] = mhs_matrix[j/C1_layer.pooling_length][k/C1_layer.pooling_length] * ((C1_layer.plates[i].inactivated[j][k]>0)?1:0);
+						C1_layer.plates[i].useAsMax[j][k] = false;
 					}
 				}
 			}
+			
 			deltas_1.add(local_delta);
 		}
 
@@ -705,7 +711,7 @@ public class Lab3 {
 					for(int j = 0; j < C1_layer.plates.length;j++){
 						for(int ai = 0; ai < c2_maxtrix1_len; ai++){
 							for(int aj = 0; aj < c2_maxtrix1_len; aj++){
-								//System.out.println(deltas_2.get(i)[ai][aj]);
+								
 								kernal_delta += deltas_2.get(i)[ai][aj]*C1_layer.plates[j].matrix2[ai+ki][aj+kj];
 							}
 						}
@@ -718,11 +724,11 @@ public class Lab3 {
 			// update bias delta
 			for(int ai = 0; ai < c2_maxtrix1_len; ai++){
 				for(int aj = 0; aj < c2_maxtrix1_len; aj++){
-					bias_delta += deltas_2.get(i)[ai][aj]*C2_layer.bias[i];
+					bias_delta += deltas_2.get(i)[ai][aj]*C2_layer.bias;
 				}
 			}
 
-			C2_layer.bias[i] -= learningRate*bias_delta;
+			C2_layer.biasWeight[i] -= learningRate*bias_delta;
 		}
 
 		// update weight 2
@@ -738,6 +744,7 @@ public class Lab3 {
 							}
 						}
 					}
+					
 					C1_layer.plates[i].kernal[ki][kj] -= learningRate*kernal_delta;
 				}
 			}
@@ -745,11 +752,14 @@ public class Lab3 {
 			// update bias delta
 			for(int ai = 0; ai < c1_maxtrix1_len; ai++){
 				for(int aj = 0; aj < c1_maxtrix1_len; aj++){
-					bias_delta += deltas_1.get(i)[ai][aj]*C1_layer.bias[i];
+					bias_delta += deltas_1.get(i)[ai][aj]*C1_layer.bias;
 				}
 			}
-			C1_layer.bias[i] -= learningRate*bias_delta;
+			C1_layer.biasWeight[i] -= learningRate*bias_delta;
 		}
+		
+		// clear useAsMax
+		
 	}
 
 

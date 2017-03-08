@@ -5,8 +5,8 @@ public class Layer{
 	Vector<double[][]> output_layer;
 	int kernal_length;
 	Vector<double[][]> kernals;
-	double bias[];
 	double biasWeight[];
+	double bias;
 	int num_plate;
 	int input_size;
 	int pooling_length;
@@ -19,25 +19,26 @@ public class Layer{
 		this.input_size = input_size;
 		this.kernal_length = kernal_length;
 		this.num_plate = num_plate;
-		bias = new double[num_plate];
 		biasWeight = new double[num_plate];
-		
+		bias = -1;
 		// init kernals
 		this.kernals = new Vector<double[][]>(num_plate);
+		
 		for(int index = 0; index < num_plate; index++){
+			//System.out.println("\nweights for "+ index + " : ");
 			double[][] kernal = new double[kernal_length][kernal_length];
 			for(int i = 0; i < kernal_length; i++){
-				for(int j = 0; j < kernal_length; j++){
+				for(int j = 0; j < kernal_length; j++){		
 					kernal[i][j] = getRandom(kernal_length*kernal_length+1,1);
 				}
 			}
 			this.kernals.add(kernal);
 		}
 
+		
 		// init bias
-		for(int i = 0; i < bias.length; i++){
+		for(int i = 0; i < biasWeight.length; i++){
 			biasWeight[i] = getRandom(kernal_length*kernal_length+1,1);
-			bias[i] = -0.1;
 		}
 
 		// Edit  this is not image size
@@ -59,6 +60,7 @@ public class Layer{
 
 			// for all plates in the input layer
 			for(int index_input = 0; index_input< input.size(); index_input++){
+				//System.out.println("\nnetout "+ index + " : ");
 				for(int i = 0; i < input_size-kernal_length+1; i++){
 					for(int j = 0; j < input_size-kernal_length+1; j++){
 						// multiply
@@ -67,18 +69,18 @@ public class Layer{
 								plates[index].matrix1[i][j] += input.get(index_input)[i+ki][j+kj]*kernal[ki][kj];
 							}
 						}
+						//System.out.println(plates[index].matrix1[i][j]);
 					}
 				}
 			}
-
+			
 
 			//EDIT 2  activation function
 			for(int i = 0; i < input_size-kernal_length+1; i++){
 				for(int j = 0; j < input_size-kernal_length+1; j++){
-					double net_out = plates[index].matrix1[i][j]+(biasWeight[index]*bias[index]);
+					double net_out = plates[index].matrix1[i][j]+(biasWeight[index]*bias);
 					plates[index].inactivated[i][j] = net_out;
 					plates[index].matrix1[i][j] = Math.max(0.0, net_out);
-					
 				}
 			}
 		}
