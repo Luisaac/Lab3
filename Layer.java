@@ -30,7 +30,7 @@ public class Layer{
 				
 				for(int i = 0; i < kernal_length; i++){
 					for(int j = 0; j < kernal_length; j++){		
-						kernal[a][i][j] = getRandom(num_input_plate*kernal_length*kernal_length+1,1);
+						kernal[a][i][j] = getRandom(num_input_plate*kernal_length*kernal_length+1,20*25);
 						
 					}
 				}
@@ -41,7 +41,7 @@ public class Layer{
 
 		// init bias
 		for(int i = 0; i < biasWeight.length; i++){
-			biasWeight[i] = getRandom(num_input_plate*kernal_length*kernal_length+1,1);
+			biasWeight[i] = getRandom(num_input_plate*kernal_length*kernal_length+1,20*25);
 		}
 
 		// Edit  this is not image size
@@ -116,9 +116,9 @@ public class Layer{
 
 
 	private double getRandom(int fanin, int fanout){
-	//	double range = Math.max(Double.MIN_VALUE, 1.0 / Math.sqrt(fanin + fanout));
-	//	return (2.0 * Lab3.random() - 1.0) * range;
-		return -0.3+0.6*Lab3.random();
+		double range = Math.max(Double.MIN_VALUE, 1.0 / Math.sqrt(fanin + fanout));
+		return (2.0 * Lab3.random() - 1.0) * range;
+	//	return -0.3+0.6*Lab3.random();
 	}
 
 

@@ -1,8 +1,10 @@
+import java.util.Random;
+
 //import java.util.ArrayList;
 //import java.util.List;
 
 public class Neuron {
-	
+	public static Random rand = new Random(8000);
 	private double activated_output;	
 	private double[] weights;
 	double bias;
@@ -14,9 +16,15 @@ public class Neuron {
 		v = new double[numLinks];
 		// initialize weights [-0.3, 0.3]
 		for(int i = 0; i<numLinks;i++){
-			weights[i] = -0.3 + Math.random()*(0.6-0.3);
+			weights[i] = getRandom(300,15);
 		}
 		bias = -1;
+	}
+	
+	private double getRandom(int fanin, int fanout){
+		double range = Math.max(Double.MIN_VALUE, 1.0 / Math.sqrt(fanin + fanout));
+		return (2.0 * rand.nextDouble() - 1.0) * range;
+	//	return -0.3+0.6*Lab3.random();
 	}
 	
 //	public Neuron(Neuron oldneuron, int numLinks ) {

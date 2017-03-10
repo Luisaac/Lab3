@@ -41,7 +41,7 @@ public class Lab3 {
 
 	private static int kernal_length = 5;
 
-	public static double learningRate = 0.3;
+	public static double learningRate = 0.1;
 	public static double momentum = -0.01;
 	public static double parameter = 0.00001;
 	public static int numHU = 300;
@@ -156,10 +156,10 @@ public class Lab3 {
 		throw new Error("Unknown category: " + name);		
 	}
 
-	private static double getRandomWeight(int fanin, int fanout) { // This is one 'rule of thumb' for initializing weights.  Fine for perceptrons and one-layer ANN at least.
-		//	double range = Math.max(Double.MIN_VALUE, 1.0 / Math.sqrt(fanin + fanout));
-		//	return (2.0 * random() - 1.0) * range;
-		return -0.3+0.6*random();
+	public static double getRandomWeight(int fanin, int fanout) { // This is one 'rule of thumb' for initializing weights.  Fine for perceptrons and one-layer ANN at least.
+			double range = Math.max(Double.MIN_VALUE, 1.0 / Math.sqrt(fanin + fanout));
+			return (2.0 * random() - 1.0) * range;
+		//return -0.3+0.6*random();
 	}
 
 	// Map from 2D coordinates (in pixels) to the 1D fixed-length feature vector.
@@ -214,9 +214,11 @@ public class Lab3 {
 		//		else if ("oneLayer".equals(   modelToUse)) return trainOneHU(      trainFeatureVectors, tuneFeatureVectors, testFeatureVectors); // This is optional.  Ditto.
 		//		else 
 		if ("deep".equals(       modelToUse)){
-
-			permute(trainFeatureVectors, trainLabels);
-			trainDeep(trainFeatureVectors, 0, trainLabels);
+			for(int i = 0; i < 15; i++){
+				permute(trainFeatureVectors, trainLabels);
+				trainDeep(trainFeatureVectors, 0, trainLabels);
+			}
+			
 			trainDeep(testFeatureVectors, 1, testLabels);
 		}
 		return -1;
@@ -539,7 +541,9 @@ public class Lab3 {
 			if (targets[maxIndex] == 1.0){
 				correctLabels++;
 			}
-			System.out.println("Predict: "+ maxIndex +" Correct: " + label);
+			if(maxIndex == label)System.out.println("Predict: "+ maxIndex +" Correct: " + label + " GOOD!");
+			else System.out.println("Predict: "+ maxIndex +" Correct: " + label);
+			
 			confusion[(int)label][maxIndex]++;
 
 
@@ -663,7 +667,7 @@ public class Lab3 {
 		// step 1
 		// delta 2
 		for(int i = 0; i < C2_layer.plates.length; i++){
-			System.out.println("\n"+i+" layer count delta:");
+	//		System.out.println("\n"+i+" layer count delta:");
 			double [][] local_delta2 = new double [10][10];
 
 			for(int j = 0; j < c2_maxtrix1_len;j++){
