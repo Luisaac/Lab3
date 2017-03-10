@@ -26,12 +26,15 @@ public class Layer{
 		for(int index = 0; index < num_plate; index++){		
 			double[][][] kernal = new double[num_input_plate][kernal_length][kernal_length];
 			for(int a = 0; a < num_input_plate; a++){
+			//	System.out.println("left " + a + "right" + index);
+				
 				for(int i = 0; i < kernal_length; i++){
 					for(int j = 0; j < kernal_length; j++){		
 						kernal[a][i][j] = getRandom(num_input_plate*kernal_length*kernal_length+1,1);
-						//System.out.println(kernal[a][i][j]);
+						
 					}
 				}
+			//	System.out.println(kernal[a][0][0]);
 			}
 			this.kernals.add(kernal);
 		}
@@ -51,7 +54,7 @@ public class Layer{
 
 	}
 	// pass in one image //EDIT
-	public Vector<double[][]> getOutput(Vector<double[][]> input){	
+	public Vector<double[][]> getOutput(Vector<double[][]> input){
 		// for all kernals
 		for(int index = 0; index < kernals.size(); index++){
 			double[][][] kernal = kernals.get(index);
@@ -66,23 +69,26 @@ public class Layer{
 						for(int ki = 0; ki < kernal_length; ki++){
 							for(int kj = 0; kj < kernal_length; kj++){
 								plates[index].matrix1[i][j] += input.get(index_input)[i+ki][j+kj]*kernal[index_input][ki][kj];
+								double temp = plates[index].matrix1[i][j];
 							}
 						}
-						
+					//	System.out.println(plates[index].matrix1[i][j]);
 					}
 				}
+				
 			}
 		}
 
 			//EDIT 2  activation function
 		for(int index = 0; index < plates.length;index++){
-			System.out.println("\nnetout "+ index + " : ");
+			//System.out.println("\nnetout "+ index + " : ");
 			for(int i = 0; i < input_size-kernal_length+1; i++){
 				for(int j = 0; j < input_size-kernal_length+1; j++){
 					double net_out = plates[index].matrix1[i][j]+(biasWeight[index]*bias);
 					plates[index].inactivated[i][j] = net_out;
-					System.out.println(plates[index].inactivated[i][j]);
-					plates[index].matrix1[i][j] = Math.max(0.0, net_out);
+				//	System.out.println(plates[index].inactivated[i][j]);
+					plates[index].matrix1[i][j] = net_out>0?net_out:0.01*net_out;
+				//	System.out.println(plates[index].matrix1[i][j]);
 				}
 			}
 		}
@@ -95,7 +101,7 @@ public class Layer{
 			int len = plates[i].matrix2.length;
 			for(int m =0;m<len;m++){
 				for(int n =0;n<len;n++)
-					output1D[n+m*len+ len*len] = plates[i].matrix1[m][n];
+					output1D[n+m*len+ len*len*i] = plates[i].matrix1[m][n];
 			}
 		}
 		return output_layer;
@@ -110,8 +116,9 @@ public class Layer{
 
 
 	private double getRandom(int fanin, int fanout){
-		double range = Math.max(Double.MIN_VALUE, 1.0 / Math.sqrt(fanin + fanout));
-		return (2.0 * Lab3.random() - 1.0) * range;
+	//	double range = Math.max(Double.MIN_VALUE, 1.0 / Math.sqrt(fanin + fanout));
+	//	return (2.0 * Lab3.random() - 1.0) * range;
+		return -0.3+0.6*Lab3.random();
 	}
 
 

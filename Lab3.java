@@ -60,10 +60,9 @@ public class Lab3 {
 	static double[] errorWRTHiddenOut = new double[numHU];
 	static Vector<double[][]> deltas_2 = null;
 	static Vector<double[][]> deltas_1 = null;
-	static double [][] local_delta2 = new double [10][10];
-	static double [][] local_delta1 = new double [28][28];
-	
-	
+
+
+
 	public static void main(String[] args) {
 		String trainDirectory = "images/trainset/";
 		String  tuneDirectory = "images/tuneset/";
@@ -158,8 +157,9 @@ public class Lab3 {
 	}
 
 	private static double getRandomWeight(int fanin, int fanout) { // This is one 'rule of thumb' for initializing weights.  Fine for perceptrons and one-layer ANN at least.
-		double range = Math.max(Double.MIN_VALUE, 1.0 / Math.sqrt(fanin + fanout));
-		return (2.0 * random() - 1.0) * range;
+		//	double range = Math.max(Double.MIN_VALUE, 1.0 / Math.sqrt(fanin + fanout));
+		//	return (2.0 * random() - 1.0) * range;
+		return -0.3+0.6*random();
 	}
 
 	// Map from 2D coordinates (in pixels) to the 1D fixed-length feature vector.
@@ -188,7 +188,7 @@ public class Lab3 {
 		Vector<Double> trainLabels = new Vector<Double>(trainset.getSize());
 		Vector<Double> tuneLabels = new Vector<Double>(tuneset.getSize());
 		Vector<Double> testLabels = new Vector<Double>(testset.getSize());
-		
+
 		C1_layer = new Layer(4,20,kernal_length1,pooling_length1,imageSize);
 		C2_layer = new Layer(20,20,5,2,secondLayerSize);
 		deltas_2 = new Vector<double[][]>(C2_layer.plates.length);
@@ -214,7 +214,7 @@ public class Lab3 {
 		//		else if ("oneLayer".equals(   modelToUse)) return trainOneHU(      trainFeatureVectors, tuneFeatureVectors, testFeatureVectors); // This is optional.  Ditto.
 		//		else 
 		if ("deep".equals(       modelToUse)){
-			
+
 			permute(trainFeatureVectors, trainLabels);
 			trainDeep(trainFeatureVectors, 0, trainLabels);
 			trainDeep(testFeatureVectors, 1, testLabels);
@@ -233,19 +233,20 @@ public class Lab3 {
 			double[][] red = new double[len][len];
 			double[][] green = new double[len][len];
 			double[][] blue = new double[len][len];
-			//		double[][] gray = new double[len][len];
+			double[][] gray = new double[len][len];
 			for(int i = 0; i<len;i++){
 				for(int j = 0;j<len;j++){
 					red[i][j] = image.getRedChannel()  [i][j] / 255.0;
 					green[i][j] = image.getGreenChannel()[i][j]/255.0;
 					blue[i][j] = image.getBlueChannel()[i][j]/255.0;
 					//System.out.println(red[i][j] + " "+green[i][j] +" "+blue[i][j]);
-					//green[i][j] = image.getGrayChannel()[i][j]/255.0;
+					gray[i][j] = image.getGrayImage()[i][j]/255.0;
 				}
 			}
 			result.add(red);
 			result.add(blue);
 			result.add(green);
+			result.add(gray);
 			featureVectors.addElement(result);
 		}
 	}
@@ -478,10 +479,10 @@ public class Lab3 {
 	private static int trainDeep(Vector<Vector<double[][]>> trainFeatureVectors, int type, Vector<Double> imageLabels) {
 
 
-		
+
 		double[][] confusion = new double[6][6];
-		
-		
+
+
 
 		int correctLabels = 0;
 		// fully connected layer
@@ -491,8 +492,8 @@ public class Lab3 {
 		System.out.println("Convolutional layer: "+imageSize+" "+secondLayerSize+" "+numLinks +" "+ trainFeatureVectors.size() +"vector length: "+ trainFeatureVectors.get(0).size() + " "+ inputVectorSize);
 
 
-	//for(int i = 0; i < trainFeatureVectors.size(); i++){
-		for(int i = 0; i < 1; i++){
+		for(int i = 0; i < trainFeatureVectors.size(); i++){
+		//for(int i = 0; i < 1; i++){
 			//	System.out.println(i);
 			//get labels
 			double label = imageLabels.get(i);
@@ -505,9 +506,9 @@ public class Lab3 {
 
 
 			//edit 1
-			System.out.println("Convolutional layer 1: ");
+			//System.out.println("Convolutional layer 1: ");
 			Vector<double[][]> temp = C1_layer.getOutput(v);
-			System.out.println("Convolutional layer 2: ");
+			//	System.out.println("Convolutional layer 2: ");
 			output_layer =  C2_layer.getOutput(temp);
 
 			double[] inputsFCLayer = C2_layer.output1D();
@@ -517,14 +518,13 @@ public class Lab3 {
 
 
 			// backward only for train
-//						if(type == 0){
-//							Vector<double[][]> rhs = fullConnectedBackward(hiddenLayer, outLayer, inputsFCLayer, targets,C2_layer);	
-//							backward(C1_layer, C2_layer, rhs, v);
-//						}
+			if(type == 0){
+				Vector<double[][]> rhs = fullConnectedBackward(hiddenLayer, outLayer, inputsFCLayer, targets,C2_layer);	
+				backward(C1_layer, C2_layer, rhs, v);
+			}
 
 
 			// get the maximum value in the outputs
-			//TODO softmax
 			double max = Double.NEGATIVE_INFINITY;
 			int maxIndex = 0;
 
@@ -561,7 +561,7 @@ public class Lab3 {
 
 		double[] hiddenOut = hiddenLayer.getOutputs();
 		//backpropagation
-		
+
 		for(int i = 0;i<numOut;i++){
 			errorWRTOutput[i] = outLayer.getNeurons(i).pdErrorWRTNetout(targets[i]);
 			double[] UpdatedOutWeights = new double[numHU+1];
@@ -593,7 +593,7 @@ public class Lab3 {
 
 		// update hidden
 		// hidden FCLayer derivatives
-		
+
 
 		for (int i = 0; i < numHU; i++) {
 			// derivatives of error wrt output FCLayers
@@ -658,68 +658,98 @@ public class Lab3 {
 		int c1_marix2_len = C1_layer.plates[0].matrix2.length;
 		deltas_2.clear();
 		deltas_1.clear();
+
+
 		// step 1
 		// delta 2
 		for(int i = 0; i < C2_layer.plates.length; i++){
-			System.out.println("\n"+i+" layer count:");
-			int count = 0;
-			
+			System.out.println("\n"+i+" layer count delta:");
+			double [][] local_delta2 = new double [10][10];
+
 			for(int j = 0; j < c2_maxtrix1_len;j++){
 				for(int k = 0; k < c2_maxtrix1_len;k++){
 					if(C2_layer.plates[i].useAsMax[j][k] == true){
-						System.out.println(C2_layer.plates[i].inactivated[j][k]);
-						local_delta2[j][k] = ((C2_layer.plates[i].inactivated[j][k]>0)?1:0)*rhs.get(i)[j/C2_layer.pooling_length][k/C2_layer.pooling_length];
-						//System.out.println(local_delta2[j][k]);
-						count ++;
+						//System.out.println(C2_layer.plates[i].inactivated[j][k]);
+						local_delta2[j][k] = ((C2_layer.plates[i].inactivated[j][k]>0)?1:0.01)*rhs.get(i)[j/C2_layer.pooling_length][k/C2_layer.pooling_length];
+//						System.out.println(local_delta2[j][k]);
+
 						C2_layer.plates[i].useAsMax[j][k] = false;
 					}
 				}
 			}
-			//System.out.println(count);
+
 
 
 			deltas_2.add(local_delta2);
+
 		}
 
 		// step 2
 		// delta 1
 		//Vector<double[][]> mhs = new Vector<double[][]>();
 		for(int i = 0; i < C1_layer.plates.length; i++){
-				
+			//		System.out.println("\n"+i+" layer count delta:");
+			double [][] local_delta1 = new double [28][28];
 			double[][] mhs_matrix = new double[c1_marix2_len][c1_marix2_len];
-			for(int j = 0; j < c1_marix2_len; j++){
-				for(int k = 0 ; k < c1_marix2_len; k++){
 
-					// for every delta_2 in  conlayer2
-					for(int deltaIndex = 0; deltaIndex<deltas_2.size();deltaIndex ++){
+			for(int C2_index = 0; C2_index < C2_layer.plates.length; C2_index++){
+				for(int j = 0; j < C1_layer.plates[i].matrix2.length-C1_layer.kernal_length+1; j++){
+					for(int k = 0 ; k < C1_layer.plates[i].matrix2.length-C1_layer.kernal_length+1; k++){
+
 						for(int ki = 0; ki < C1_layer.kernal_length; ki++){
 							for(int kj = 0; kj < C1_layer.kernal_length; kj++){
-								int deltalen = deltas_2.get(i).length;
-								//System.out.println("k: "+k+" j: "+j+" ki: "+ki+" kj: "+kj+" deltalen: "+deltalen);
-								if((j-ki) <0 || (k-kj) <0 || (j-ki) >= deltalen || (k-kj) >= deltalen)
-									mhs_matrix[j][k] += 0;
-								else{
-									mhs_matrix[j][k] +=  deltas_2.get(deltaIndex)[j-ki][k-kj] * C2_layer.kernals.get(i)[deltaIndex][ki][kj];
-								}
+								mhs_matrix[j+ki][k+kj] +=  deltas_2.get(C2_index)[j][k] * C2_layer.kernals.get(C2_index)[i][ki][kj];
 							}
 						}
+
 					}
 				}
+
 			}
+
+
+
+
+			//			for(int j = 0; j < c1_marix2_len; j++){
+			//				for(int k = 0 ; k < c1_marix2_len; k++){
+			//
+			//					// for every delta_2 in  conlayer2
+			//					for(int deltaIndex = 0; deltaIndex<deltas_2.size();deltaIndex ++){
+			//						for(int ki = 0; ki < C1_layer.kernal_length; ki++){
+			//							for(int kj = 0; kj < C1_layer.kernal_length; kj++){
+			//								int deltalen = deltas_2.get(i).length;
+			//								//System.out.println("k: "+k+" j: "+j+" ki: "+ki+" kj: "+kj+" deltalen: "+deltalen);
+			//								if((j-ki) <0 || (k-kj) <0 || (j-ki) >= deltalen || (k-kj) >= deltalen)
+			//									mhs_matrix[j][k] += 0;
+			//								else{
+			//									mhs_matrix[j][k] +=  deltas_2.get(deltaIndex)[j-ki][k-kj] * C2_layer.kernals.get(i)[deltaIndex][ki][kj];
+			//								}
+			//							}
+			//						}
+			//					}
+			//				}
+			//			}
+
+
+
+
 			for(int j = 0;j<c1_maxtrix1_len;j++){
 				for(int k = 0; k< c1_maxtrix1_len;k++){
 					if(C1_layer.plates[i].useAsMax[j][k] == true){
-						local_delta1[j][k] = mhs_matrix[j/C1_layer.pooling_length][k/C1_layer.pooling_length] * ((C1_layer.plates[i].inactivated[j][k]>0)?1:0);
+						//System.out.println(C1_layer.plates[i].inactivated[j][k]);
+						local_delta1[j][k] = mhs_matrix[j/C1_layer.pooling_length][k/C1_layer.pooling_length] * ((C1_layer.plates[i].inactivated[j][k]>0)?1:0.01);
+						//	System.out.println(local_delta1[j][k]);
 						C1_layer.plates[i].useAsMax[j][k] = false;
 					}
 				}
 			}
 
 			deltas_1.add(local_delta1);
+
 		}
 
 
-		
+
 		// update weight 1
 		for(int i = 0; i < deltas_2.size(); i++){
 			double bias_delta = 0;
@@ -741,13 +771,13 @@ public class Lab3 {
 			// update bias delta
 			for(int ai = 0; ai < c2_maxtrix1_len; ai++){
 				for(int aj = 0; aj < c2_maxtrix1_len; aj++){
-					bias_delta += deltas_2.get(i)[ai][aj]*C2_layer.bias;
+					C2_layer.biasWeight[i] += learningRate*deltas_2.get(i)[ai][aj]*C2_layer.bias;
 				}
 			}
 
-			C2_layer.biasWeight[i] -= learningRate*bias_delta;
+
 		}
-		
+
 		//update weight 2
 		for(int i = 0; i < deltas_1.size(); i++){
 			double bias_delta = 0;
@@ -766,10 +796,10 @@ public class Lab3 {
 			// update bias delta
 			for(int ai = 0; ai < c1_maxtrix1_len; ai++){
 				for(int aj = 0; aj < c1_maxtrix1_len; aj++){
-					bias_delta += deltas_1.get(i)[ai][aj]*C1_layer.bias;
+					C1_layer.biasWeight[i] += learningRate*deltas_1.get(i)[ai][aj]*C1_layer.bias;
 				}
 			}
-			C1_layer.biasWeight[i] -= learningRate*bias_delta;
+
 		}
 
 		// clear useAsMax
@@ -809,6 +839,6 @@ class Afunc{
 		return 1/(1+Math.pow(Math.E, (in*-1)));
 	}
 	public static double rectify(double in){
-		return Math.max(0, in);
+		return in>0?in:0.01*in;
 	}
 }
