@@ -26,6 +26,7 @@ public class FCLayer {
 		
 		for(int i = 0;i<size;i++){
 			outputs[i] = neurons.get(i).activatedOutput(inputs);
+			
 		}
 		return outputs;
 	}
