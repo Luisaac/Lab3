@@ -2,7 +2,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class FCLayer {
-	private List<Neuron> neurons;
+	public List<Neuron> neurons;
 	private double[] outputs;
 	private int size;
 
@@ -26,6 +26,7 @@ public class FCLayer {
 		
 		for(int i = 0;i<size;i++){
 			outputs[i] = neurons.get(i).activatedOutput(inputs);
+			
 		}
 		return outputs;
 	}
