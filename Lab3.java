@@ -31,36 +31,36 @@ public class Lab3 {
 	private static final Boolean    useRGB = true; // If true, FOUR units are used per pixel: red, green, blue, and grey.  If false, only ONE (the grey-scale value).
 	private static       int unitsPerPixel = (useRGB ? 4 : 1); // If using RGB, use red+blue+green+grey.  Otherwise just use the grey value.
 
-	private static String    modelToUse = "deep"; // Should be one of { "perceptrons", "oneLayer", "deep" };  You might want to use this if you are trying approaches other than a Deep ANN.
+	final private static String    modelToUse = "deep"; // Should be one of { "perceptrons", "oneLayer", "deep" };  You might want to use this if you are trying approaches other than a Deep ANN.
 	private static int       inputVectorSize;         // The provided code uses a 1D vector of input features.  You might want to create a 2D version for your Deep ANN code.  
 	// Or use the get2DfeatureValue() 'accessor function' that maps 2D coordinates into the 1D vector.  
 	// The last element in this vector holds the 'teacher-provided' label of the example.
 
-	private static double eta       =    0.1, fractionOfTrainingToUse = 1.00, dropoutRate = 0.50; // To turn off drop out, set dropoutRate to 0.0 (or a neg number).
-	private static int    maxEpochs = 1; // Feel free to set to a different value.
+	final private static double eta       =    0.1, fractionOfTrainingToUse = 1.00, dropoutRate = 0.50; // To turn off drop out, set dropoutRate to 0.0 (or a neg number).
+	final private static int    maxEpochs = 5; // Feel free to set to a different value.
 
-	private static int kernal_length = 5;
+	final private static int kernal_length = 5;
 
-	public static double learningRate = 0.01;
-	public static double momentum = -0.01;
-	public static double parameter = 0.00001;
-	public static int numHU = 300;
-	public static int numOut = 6;
-	static int kernal_length1 = 5;
-	static int pooling_length1 = 2;
-	static int secondLayerSize = (imageSize-kernal_length1+1)/pooling_length1;
+	final public static double learningRate = 0.01;
+	final public static double momentum = -0.01;
+	final public static double parameter = 0.00001;
+	final public static int numHU = 300;
+	final public static int numOut = 6;
+	final static int kernal_length1 = 5;
+	final static int pooling_length1 = 2;
+	final static int secondLayerSize = (imageSize-kernal_length1+1)/pooling_length1;
 	static Layer C1_layer = null;
 	static Layer C2_layer = null;
 
-	static int numLinks = (secondLayerSize-kernal_length1+1)/pooling_length1 * ((secondLayerSize-kernal_length1+1)/pooling_length1)*20;
-	static FCLayer hiddenLayer = new FCLayer(numHU,numLinks+1);
-	static FCLayer outLayer = new FCLayer(numOut,numHU+1);
+	final static int numLinks = (secondLayerSize-kernal_length1+1)/pooling_length1 * ((secondLayerSize-kernal_length1+1)/pooling_length1)*20;
+	static FCLayer hiddenLayer = new FCLayer(numHU,numLinks+1, false);
+	static FCLayer outLayer = new FCLayer(numOut,numHU+1,true);
 	static Vector<double[][]> output_layer = new Vector<double[][]>();
 	static double[] errorWRTOutput = new double[numOut];
 	static double[] errorWRTHiddenOut = new double[numHU];
 	static Vector<double[][]> deltas_2 = null;
 	static Vector<double[][]> deltas_1 = null;
-
+	static boolean createExtraTrainingExamples = true;
 
 
 	public static void main(String[] args) {
@@ -92,6 +92,57 @@ public class Lab3 {
 		loadDataset(trainset, trainsetDir);
 		System.out.println("The trainset contains " + comma(trainset.getSize()) + " examples.  Took " + convertMillisecondsToTimeSpan(System.currentTimeMillis() - start) + ".");
 
+		////////////////////
+		 if (createExtraTrainingExamples) {
+	            start = System.currentTimeMillis();
+	            Dataset trainsetExtras = new Dataset();
+	            
+	            // Flipping watches will mess up the digits on the watch faces, but that probably is ok.
+	            for (Instance origTrainImage : trainset.getImages()) {
+	                if (!"airplanes".equals(  origTrainImage.getLabel()) &&  // Airplanes all 'face' right and up, so don't flip left-to-right or top-to-bottom.
+	                    !"grand_piano".equals(origTrainImage.getLabel())) {  // Ditto for pianos.
+	                    
+	                    trainsetExtras.add(origTrainImage.flipImageLeftToRight());
+	                    
+	                    if (!"butterfly".equals(origTrainImage.getLabel()) &&  // Butterflies all have the heads at the top, so don't flip top-to-bottom.
+	                        !"flower".equals(   origTrainImage.getLabel()) &&  // Ditto for flowers.
+	                        !"starfish".equals( origTrainImage.getLabel())) {  // Star fish are standardized to 'point up.
+	                        trainsetExtras.add(origTrainImage.flipImageTopToBottom());
+	                    }
+	                }
+	                
+	                for (int shiftCopies = 1; shiftCopies <= 2; shiftCopies++) {
+	                    trainsetExtras.add(origTrainImage.shiftImage(shiftCopies, shiftCopies));
+	                }
+	            }
+	            
+
+	            int[] countOfCreatedTrainingImages = new int[Category.values().length];
+	            for (Instance createdTrainImage : trainsetExtras.getImages()) {
+	                // Keep more of the less common categories?
+	                double probOfKeeping = 1.0;
+	                
+	                // Trainset counts: airplanes=127, butterfly=55, flower=114, piano=61, starfish=51, watch=146
+	                if      ("airplanes".equals(  createdTrainImage.getLabel())) probOfKeeping = 0.50; // Only shifted, so fewer created.
+	                else if ("butterfly".equals(  createdTrainImage.getLabel())) probOfKeeping = 1.00; // No top-bottom flips, so fewer created.
+	                else if ("flower".equals(     createdTrainImage.getLabel())) probOfKeeping = 0.33; // No top-bottom flips, so fewer created.
+	                else if ("grand_piano".equals(createdTrainImage.getLabel())) probOfKeeping = 1.00; // Only shifted, so fewer created.
+	                else if ("starfish".equals(   createdTrainImage.getLabel())) probOfKeeping = 1.00; // No top-bottom flips, so fewer created.
+	                else if ("watch".equals(      createdTrainImage.getLabel())) probOfKeeping = 0.20; // Already have a lot of these.
+	         //       else waitForEnter("Unknown label: " + createdTrainImage.getLabel());
+	                
+	                if (random() <= probOfKeeping) {
+	                    countOfCreatedTrainingImages[convertCategoryStringToEnum(createdTrainImage.getLabel()).ordinal()]++;
+	                    trainset.add(createdTrainImage);
+	                }
+	            }
+	            for (Category cat : Category.values()) {
+	                System.out.println(" Created" + padLeft(comma(countOfCreatedTrainingImages[cat.ordinal()]), 4) + " 'tweaked' images of " + cat + ".");
+	            }
+	            System.out.println("Created " + comma(trainsetExtras.getSize()) + " new training examples.  Took " + convertMillisecondsToTimeSpan(System.currentTimeMillis() - start) + ".");
+	        }
+		/////////////////////
+		
 		start = System.currentTimeMillis();
 		loadDataset(tuneset, tunesetDir);
 		System.out.println("The  testset contains " + comma( tuneset.getSize()) + " examples.  Took " + convertMillisecondsToTimeSpan(System.currentTimeMillis() - start) + ".");
@@ -135,7 +186,7 @@ public class Lab3 {
 					g.dispose();
 				}
 
-				Instance instance = new Instance(scaledBI == null ? img : scaledBI, name.substring(0, locationOfUnderscoreImage));
+				Instance instance = new Instance(scaledBI == null ? img : scaledBI, name,name.substring(0, locationOfUnderscoreImage));
 
 				dataset.add(instance);
 			} catch (IOException e) {
@@ -159,7 +210,7 @@ public class Lab3 {
 	public static double getRandomWeight(int fanin, int fanout) { // This is one 'rule of thumb' for initializing weights.  Fine for perceptrons and one-layer ANN at least.
 			//double range = Math.max(Double.MIN_VALUE, 1.0 / Math.sqrt(fanin + fanout));
 			//return (2.0 * random() - 1.0) * range;
-		return -0.3+0.6*random();
+		return -0.03+0.06*random();
 	}
 
 	// Map from 2D coordinates (in pixels) to the 1D fixed-length feature vector.
@@ -214,7 +265,7 @@ public class Lab3 {
 		//		else if ("oneLayer".equals(   modelToUse)) return trainOneHU(      trainFeatureVectors, tuneFeatureVectors, testFeatureVectors); // This is optional.  Ditto.
 		//		else 
 		if ("deep".equals(       modelToUse)){
-			for(int i = 0; i < 1; i++){
+			for(int i = 0; i < maxEpochs; i++){
 				System.out.println("epoch: " +i);
 				permute(trainFeatureVectors, trainLabels);
 				trainDeep(trainFeatureVectors, 0, trainLabels);
@@ -592,17 +643,18 @@ public class Lab3 {
 
 				//		UpdatedOutWeights[j] = outLayer.getNeurons(i).getWeight(j)- errorWRTweight * learningRate;
 				UpdatedOutWeights[j] = (outLayer.getNeurons(i).getWeight(j)
-						- errorWRTweight * learningRate + momentum * outLayer.getNeurons(i).getV(j)
-						- parameter * learningRate * outLayer.getNeurons(i).getWeight(j));
+						- errorWRTweight * learningRate); 
+//						+ momentum * outLayer.getNeurons(i).getV(j)
+//						- parameter * learningRate * outLayer.getNeurons(i).getWeight(j));
 				//				double change = -errorWRTweight * learningRate
 				//						- parameter * learningRate * outLayer.getNeurons(i).getWeight(j)
 				//						+ momentum * outLayer.getNeurons(i).getV(j);
 				//				outLayer.getNeurons(i).setV(change, j);
 
 				// save current weight change
-				outLayer.getNeurons(i).setV(errorWRTweight, j);
+		//		outLayer.getNeurons(i).setV(errorWRTweight, j);
 			}
-			outLayer.getNeurons(i).updateWeights(UpdatedOutWeights);
+		//	outLayer.getNeurons(i).updateWeights(UpdatedOutWeights);
 		}
 
 		// update hidden
@@ -634,8 +686,9 @@ public class Lab3 {
 				//UpdatedOutWeights[k] = hiddenLayer.getNeurons(i).getWeight(k)- errorWRTweight * learningRate;
 
 				UpdatedOutWeights[k] = (hiddenLayer.getNeurons(i).getWeight(k)
-						- errorWRTweight * learningRate + momentum * hiddenLayer.getNeurons(i).getV(k)
-						- parameter * learningRate * hiddenLayer.getNeurons(i).getWeight(k));
+						- errorWRTweight * learningRate) ;
+//						+ momentum * hiddenLayer.getNeurons(i).getV(k)
+//						- parameter * learningRate * hiddenLayer.getNeurons(i).getWeight(k));
 				//				double change = -errorWRTweight * learningRate
 				//						- parameter * learningRate * hiddenLayer.getNeurons(i).getWeight(k)
 				//						+ momentum * hiddenLayer.getNeurons(i).getV(k);
@@ -654,6 +707,7 @@ public class Lab3 {
 				for(int m =0;m<len;m++){
 					double tmp = 0.0;
 					for(int j = 0;j<numHU;j++){
+						//important i?
 						tmp += errorWRTHiddenOut[j] * hiddenLayer.getNeurons(j).getWeight(m+i*len+len*len*k);
 					}
 					//System.out.println(tmp);

@@ -10,8 +10,9 @@ public class Neuron {
 	double bias;
 	private double[] v; // previous weight change for momentum
 	private double biasWeight;
-	public Neuron(int numLinks){
-
+	private boolean sigmoid;
+	public Neuron(int numLinks, boolean sigmoid){
+		this.sigmoid = sigmoid;
 		weights = new double[numLinks];
 		v = new double[numLinks];
 		// initialize weights [-0.3, 0.3]
@@ -62,7 +63,11 @@ public class Neuron {
 		
 		net_output += bias*weights[inputs.length];
 		// sigmoid as activation function
+		if(sigmoid){
 		this.activated_output = 1.0 / (1 + Math.exp(-1.0 * net_output));
+		}else{
+			this.activated_output = (net_output >0)?net_output:net_output*0.01;
+		}
 		return this.activated_output;
 	}
 	
@@ -73,8 +78,12 @@ public class Neuron {
 	
 	// derivative of weightedSum with respect to input
 	public double pdOutputWRTNetout(){
-		return activated_output * (1.0 - activated_output);
-		
+		if(sigmoid){
+			return activated_output * (1.0 - activated_output);
+		}
+		else{
+			return activated_output>0?1:0.01;
+		}
 	}
 	
 	public double pdErrorWRTNetout(double target){

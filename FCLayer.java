@@ -6,13 +6,13 @@ public class FCLayer {
 	private double[] outputs;
 	private int size;
 
-	public FCLayer(int numNeurons,int numLinks){
+	public FCLayer(int numNeurons,int numLinks, boolean sigmoid){
 		neurons = new ArrayList<Neuron>();
 		size = numNeurons;
 		// one biased term
 		outputs = new double[numNeurons];
 		for(int i = 0;i<numNeurons;i++){
-			Neuron tmp = new Neuron(numLinks);
+			Neuron tmp = new Neuron(numLinks, sigmoid);
 			neurons.add(tmp);
 		}
 	}
