@@ -1002,7 +1002,7 @@ class Neuron {
 	private double getRandom(int fanin, int fanout){
 		//double range = Math.max(Double.MIN_VALUE, 1.0 / Math.sqrt(fanin + fanout));
 		//return (2.0 * rand.nextDouble() - 1.0) * range;
-		return -0.3+0.6*Lab3.random();
+		return -0.3+0.6*Lab3_hpiao_rtang37_xliu487_zlu65.random();
 	}
 	
 //	public Neuron(Neuron oldneuron, int numLinks ) {
@@ -1207,7 +1207,7 @@ class Layer{
 	private double getRandom(int fanin, int fanout){
 		//double range = Math.max(Double.MIN_VALUE, 1.0 / Math.sqrt(fanin + fanout));
 		//return (2.0 * Lab3.random() - 1.0) * range;
-		return -0.3+0.6*Lab3.random();
+		return -0.3+0.6*Lab3_hpiao_rtang37_xliu487_zlu65.random();
 	}
 
 
