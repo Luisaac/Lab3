@@ -30,7 +30,7 @@ public class Layer{
 				
 				for(int i = 0; i < kernal_length; i++){
 					for(int j = 0; j < kernal_length; j++){		
-						kernal[a][i][j] = getRandom(num_input_plate*kernal_length*kernal_length+1,1);
+						kernal[a][i][j] = getRandom(5*5*4+1,20*25);
 						
 					}
 				}
@@ -41,7 +41,7 @@ public class Layer{
 
 		// init bias
 		for(int i = 0; i < biasWeight.length; i++){
-			biasWeight[i] = getRandom(num_input_plate*kernal_length*kernal_length+1,1);
+			biasWeight[i] = getRandom(5*5*4+1,20*25);
 		}
 
 		// Edit  this is not image size
@@ -55,6 +55,13 @@ public class Layer{
 	}
 	// pass in one image //EDIT
 	public Vector<double[][]> getOutput(Vector<double[][]> input){
+		for(int index = 0; index<num_plate; index++){
+			for(int i = 0; i < plates[index].matrix1.length; i++){
+				for(int j = 0; j < plates[index].matrix1.length; j++){
+					plates[index].matrix1[i][j] = 0;
+				}
+			}
+		}
 		// for all kernals
 		for(int index = 0; index < kernals.size(); index++){
 			double[][][] kernal = kernals.get(index);
@@ -81,14 +88,14 @@ public class Layer{
 
 			//EDIT 2  activation function
 		for(int index = 0; index < plates.length;index++){
-			//System.out.println("\nnetout "+ index + " : ");
+	//		System.out.println("\nnetout "+ index + " : ");
 			for(int i = 0; i < input_size-kernal_length+1; i++){
 				for(int j = 0; j < input_size-kernal_length+1; j++){
 					double net_out = plates[index].matrix1[i][j]+(biasWeight[index]*bias);
 					plates[index].inactivated[i][j] = net_out;
-				//	System.out.println(plates[index].inactivated[i][j]);
+		//			System.out.println(plates[index].inactivated[i][j]);
 					plates[index].matrix1[i][j] = net_out>0?net_out:0.01*net_out;
-				//	System.out.println(plates[index].matrix1[i][j]);
+		//			System.out.println(plates[index].matrix1[i][j]);
 				}
 			}
 		}
@@ -116,8 +123,8 @@ public class Layer{
 
 
 	private double getRandom(int fanin, int fanout){
-	//	double range = Math.max(Double.MIN_VALUE, 1.0 / Math.sqrt(fanin + fanout));
-	//	return (2.0 * Lab3.random() - 1.0) * range;
+//		double range = Math.max(Double.MIN_VALUE, 1.0 / Math.sqrt(fanin + fanout));
+//		return (2.0 * Lab3.random() - 1.0) * range;
 		return -0.3+0.6*Lab3.random();
 	}
 

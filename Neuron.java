@@ -1,22 +1,31 @@
+import java.util.Random;
+
 //import java.util.ArrayList;
 //import java.util.List;
 
 public class Neuron {
-	
+	public static Random rand = new Random(8000);
 	private double activated_output;	
 	private double[] weights;
-	private double bias;
+	double bias;
 	private double[] v; // previous weight change for momentum
-	private double errorWRToutput;
+	private double biasWeight;
 	public Neuron(int numLinks){
 
 		weights = new double[numLinks];
 		v = new double[numLinks];
 		// initialize weights [-0.3, 0.3]
 		for(int i = 0; i<numLinks;i++){
-			weights[i] = -0.3 + Math.random()*(0.6-0.3);
+			//weights[i] = getRandom(300,15);
+			weights[i] = -0.3+Math.random()*0.6;
 		}
 		bias = -1;
+	}
+	
+	private double getRandom(int fanin, int fanout){
+		double range = Math.max(Double.MIN_VALUE, 1.0 / Math.sqrt(fanin + fanout));
+		return (2.0 * rand.nextDouble() - 1.0) * range;
+	//	return -0.3+0.6*Lab3.random();
 	}
 	
 //	public Neuron(Neuron oldneuron, int numLinks ) {
@@ -34,9 +43,9 @@ public class Neuron {
 		this.weights = update;
 	}
 	
-	public void updateBias(double change){
-		this.bias = bias - change;
-	}
+//	public void updateBias(double change){
+//		this.bias = bias - change;
+//	}
 	
 	public double getWeight(int index){
 		return this.weights[index];
@@ -51,7 +60,7 @@ public class Neuron {
 			net_output += inputs[i]*weights[i];
 		}
 		
-		net_output += bias;
+		net_output += bias*weights[inputs.length];
 		// sigmoid as activation function
 		this.activated_output = 1.0 / (1 + Math.exp(-1.0 * net_output));
 		return this.activated_output;
@@ -71,11 +80,7 @@ public class Neuron {
 	public double pdErrorWRTNetout(double target){
 		return pdErrorWRTOutput(target)*pdOutputWRTNetout();
 	}
-	
-	// for hidden layers, error with respect to the activated output
-	public void HDErrorWRTOutput(double delta){
-		errorWRToutput = delta;
-	}
+
 	
 	public double computeError(double target){
 		return 1/2*Math.pow((target-this.activated_output), 2);
@@ -91,3 +96,4 @@ public class Neuron {
 	
 	
 }
+
