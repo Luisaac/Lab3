@@ -47,20 +47,29 @@ public class Lab3 {
 	final public static double learningRate = 0.01;
 	final public static double momentum = 0.01;
 	final public static double parameter = 0.03;
-	//TODO numHU, numOut
 	final public static int numHU = 100;
 	final public static int numOut = 6;
 	final static int kernal_length1 = 5;
 	final static int pooling_length1 = 2;
+	final static int batchsize = 10;
+
 	//TODO num_plate = 20;
 	final static int num_plate = 20;
 	final static int secondLayerSize = (imageSize-kernal_length1+1)/pooling_length1;
+	final static int numLinks = (secondLayerSize-kernal_length1+1)/pooling_length1 * ((secondLayerSize-kernal_length1+1)/pooling_length1)*num_plate;
 	static Layer C1_layer = null;
 	static Layer C2_layer = null;
 	static FCLayer hiddenLayer;
 	static FCLayer outLayer;
 
-	final static int numLinks = (secondLayerSize-kernal_length1+1)/pooling_length1 * ((secondLayerSize-kernal_length1+1)/pooling_length1)*num_plate;
+	// bacth: store average delta
+	static double[][] hiddenDelta = new double[numHU][numLinks+1];
+	static double[][] outDelta = new double[numOut][numHU+1];
+	static Vector<double[][][]> conv1Delta = new Vector<double[][][]>(num_plate);
+	static Vector<double[][][]> conv2Delta = new Vector<double[][][]>(num_plate);
+	static double[] conv1Bias = new double[num_plate];
+	static double[] conv2Bias = new double[num_plate];
+
 	static Vector<double[][]> output_layer = new Vector<double[][]>();
 	static Vector<double[][]> deltas_2 = null;
 	static Vector<double[][]> deltas_1 = null;
@@ -267,7 +276,7 @@ public class Lab3 {
 
 		System.out.println("\nTime to start learning!");
 
-		//TODO
+		//TODO mark 
 		try {
 			out = new PrintWriter(new BufferedWriter(new FileWriter("output.out")));
 		} catch (IOException e) {
@@ -308,7 +317,7 @@ public class Lab3 {
 		//			}
 		//			testFeatureVectors.add(ins);
 		//		}
-		
+
 		// Call your Deep ANN here.  We recommend you create a separate class file for that during testing and debugging, but before submitting your code cut-and-paste that code here.
 
 		//		if      ("perceptrons".equals(modelToUse)) return trainPerceptrons(trainFeatureVectors, tuneFeatureVectors, testFeatureVectors); // This is optional.  Either comment out this line or just right a 'dummy' function.
@@ -320,7 +329,18 @@ public class Lab3 {
 				permute(trainFeatureVectors, trainLabels);
 				System.out.println("epoch: " +i);
 				System.out.println("Train Accuracy at epoch " +i);
-				trainDeep(trainFeatureVectors, 0, trainLabels);
+
+
+				Vector<Vector<double[][]>> batch = new Vector<Vector<double[][]>>(batchsize);
+				Vector<Double> labels = new Vector<Double>(batchsize);
+				for(int index = trainFeatureVectors.size();index < trainFeatureVectors.size()-batchsize;index++){
+					int j = random0toNminus1(index);
+					Vector<double[][]> tmp = trainFeatureVectors.get(j);
+					labels.add(trainLabels.get(j));
+					batch.add(tmp);
+
+				}
+				trainDeep(batch, 0, labels);
 				System.out.println("Tune Accuracy at epoch " +i);
 				trainDeep(tuneFeatureVectors, 1, tuneLabels);
 				System.out.println("Test Accuracy at epoch " +i);
@@ -484,9 +504,7 @@ public class Lab3 {
 
 		double[][] confusion = new double[6][6];
 		int correctLabels = 0;
-		//		int num = 0;
-		//		if(type == 0) num = trainFeatureVectors.size();
-		//		else num = 3;
+
 		for(int i = 0; i < trainFeatureVectors.size(); i++){
 			//for(int i = 0; i < 1; i++){
 			//	System.out.println(i);
@@ -499,7 +517,7 @@ public class Lab3 {
 			//double[][] input = transform(trainFeatureVectors.get(i));
 			//v.add(input);
 
-			//TODO
+		
 
 			//edit 1
 			//System.out.println("Convolutional layer 1: ");
@@ -509,58 +527,30 @@ public class Lab3 {
 			//									System.out.println(temp.get(10)[0][0]);
 			//			System.out.println("Convolutional layer 2: ");
 			output_layer =  C2_layer.feedForward(temp);
-//															System.out.println(output_layer.get(0)[0][0]);
-//															System.out.println(output_layer.get(5)[0][0]);
-//															System.out.println(output_layer.get(10)[0][0]);
+			//															System.out.println(output_layer.get(0)[0][0]);
+			//															System.out.println(output_layer.get(5)[0][0]);
+			//															System.out.println(output_layer.get(10)[0][0]);
 			double[] inputsFCLayer = C2_layer.output1D();
 
 			double[] hiddenOut = hiddenLayer.feedForward(inputsFCLayer);
-//									System.out.println(hiddenOut[0]);
-//									System.out.println(hiddenOut[150]);
-//									System.out.println(hiddenOut[299]);
+			//									System.out.println(hiddenOut[0]);
+			//									System.out.println(hiddenOut[150]);
+			//									System.out.println(hiddenOut[299]);
 			double[] outLayer_outputs = outLayer.feedForward(hiddenOut);
-			
-			//TODO output
+
+		
 			//for(int ia = 0; ia < outLayer_outputs.length; ia++) System.out.println(outLayer_outputs[ia]);
 
 			// backward only for train
 			if(type == 0){
-				backward(hiddenLayer, outLayer, inputsFCLayer,label,C2_layer, C1_layer, v);	
+				backward(inputsFCLayer,v,label);	
 			}
-
-
-			// change first conv layer weights
-			//for(int m = 0;m< C1_layer.kernals.get(0).length;m++){
-			//			for(int n = 0;n<kernal_length; n++){
-			//				for(int k = 0;k<kernal_length; k++){
-			//					C1_layer.kernals.get(0)[0][n][k] += epsilon;
-			//				}
-			//			}
-			//			//}
-			//
-			//			double[][] out1 = C1_layer.getOutput(v).get(0);
-			//
-			//
-			//			for(int n = 0;n<kernal_length; n++){
-			//				for(int k = 0;k<kernal_length; k++){
-			//					C1_layer.kernals.get(0)[0][n][k] -= 2*epsilon;
-			//				}
-			//			}
-			//
-			//			double[][] out2 = C1_layer.getOutput(v).get(0);
-			//			double finite = (out1[0][0]-out2[0][0])/2*epsilon;
-			//			double gradient = tested[0][0];
-			//			double error = Math.abs(finite - gradient)/Math.max(Math.abs(finite), Math.max(Math.abs(gradient), epsilon));
-			//			if(error > 25*epsilon)
-			//				System.out.println("first gradient error!");
-
-			//double[][] test2 = new double[kernal_length][kernal_length];
 
 			int predicted = outLayer.predicted;
 			if (outLayer.predicted == label){
 				correctLabels++;
 			}
-			//TODO
+		
 			//if(predicted == label) out.println("Predict: "+ predicted +" Correct: " + label + " GOOD!");
 			//else out.println("Predict: "+ predicted +" Correct: " + label);
 
@@ -570,6 +560,19 @@ public class Lab3 {
 			C1_layer.clearMax();
 			//out.println("image: "+ i);
 		}
+		//clear delta,
+		//TODO update weights and clear delta
+		hiddenDelta = 0.0;
+		outDelta = 0.0;
+		conv1Delta = 0.0;
+		conv2Delta = 0.0;
+		
+		for(int i = 0;i<numOut;i++){
+			outLayer.getNeurons(i).updateWeights(outDelta[i]);
+		}
+
+
+
 		System.out.println("Accuracy = " + correctLabels/(double)trainFeatureVectors.size());
 
 		for(int i = 0; i < 6; i++){
@@ -582,7 +585,7 @@ public class Lab3 {
 		return -1;
 	}
 
-	public static void backward(FCLayer hiddenLayer, FCLayer outLayer,double[] inputs, int targets, Layer C2_layer, Layer C1_layer, Vector<double[][]> v){
+	public static void backward(double[] inputs,Vector<double[][]> v, int targets){
 		double[] hiddenOut = hiddenLayer.getOutputs();
 		double[] finalOut = outLayer.getOutputs();
 		//backpropagation
@@ -636,10 +639,6 @@ public class Lab3 {
 			for(int j = 0; j < c2_maxtrix1_len;j++){
 				for(int k = 0; k < c2_maxtrix1_len;k++){
 					if(C2_layer.plates[i].useAsMax[j][k] == true){
-//						double a =(C2_layer.plates[i].inactivated[j][k]>0)?1:0.01;
-//						double b = errorWRTInput.get(i)[j/C2_layer.pooling_length][k/C2_layer.pooling_length];
-//						double c = a*b;
-						//out.println("delta2: "+ c + ", gradientHOut: "+b);
 						local_delta2[j][k] = ((C2_layer.plates[i].inactivated[j][k]>0)?1:0.01)*errorWRTInput.get(i)[j/C2_layer.pooling_length][k/C2_layer.pooling_length];
 					}
 				}
@@ -660,8 +659,6 @@ public class Lab3 {
 					for(int k = 0 ; k < c2_maxtrix1_len; k++){
 						for(int ki = 0; ki < C2_layer.kernal_length; ki++){
 							for(int kj = 0; kj < C2_layer.kernal_length; kj++){
-//								double a = deltas_2.get(C2_index)[j][k];
-//								double b = C2_layer.kernals.get(C2_index)[i][ki][kj];
 								mhs_matrix[j+ki][k+kj] +=  deltas_2.get(C2_index)[j][k] * C2_layer.kernals.get(C2_index)[i][ki][kj];
 							}
 						}
@@ -673,11 +670,7 @@ public class Lab3 {
 
 			for(int j = 0;j<c1_maxtrix1_len;j++){
 				for(int k = 0; k< c1_maxtrix1_len;k++){
-
 					if(C1_layer.plates[i].useAsMax[j][k] == true){
-						//System.out.println(C1_layer.plates[i].inactivated[j][k]);
-//						double a = mhs_matrix[j/C1_layer.pooling_length][k/C1_layer.pooling_length];
-//						double b = C1_layer.plates[i].inactivated[j][k];
 						local_delta1[j][k] = mhs_matrix[j/C1_layer.pooling_length][k/C1_layer.pooling_length] * ((C1_layer.plates[i].inactivated[j][k]>0)?1:0.01);
 						//System.out.println("delta1: "+local_delta1[j][k]);
 					}
@@ -702,19 +695,18 @@ public class Lab3 {
 				// get previous change in weight
 				errorWRTweight /= inputs.length;
 				errorWRTweight += 0.5*outLayer.getNeurons(i).getWeight(j);
-				//UpdatedOutWeights[j] = outLayer.getNeurons(i).getWeight(j)- errorWRTweight * learningRate;
-				//double change = errorWRTweight;
+				
+				//TODO no need to uddate weights here, save average and add momentum and ADAM
 				double change = errorWRTweight*learningRate +momentum * outLayer.getNeurons(i).getV(j);
-				UpdatedOutWeights[j] = outLayer.getNeurons(i).getWeight(j) - learningRate*change;
+				UpdatedOutWeights[j] = outLayer.getNeurons(i).getWeight(j) - change;
 				outLayer.getNeurons(i).setV(change, j);
 				//				
 				//out.println("updatedWeightOutLayer("+i+"): "+UpdatedOutWeights[j] +", beforeUpdate: "+outLayer.getNeurons(i).getWeight(j) + ", errorWRTOUT: "+errorWRTOutput[i] + ", change: "+change +", hiddenOut0: " +hiddenOut[0] +", inut:"+inputs[0]);
 				// save current weight change
 				//out.println("OutLayerchange: "+change);
 			}
-			outLayer.getNeurons(i).updateWeights(UpdatedOutWeights);
 		}
-
+		
 		// update hidden
 		for (int i = 0; i < numHU; i++) {
 
@@ -733,14 +725,13 @@ public class Lab3 {
 
 				//UpdatedOutWeights[k] = (hiddenLayer.getNeurons(i).getWeight(k)- errorWRTweight * learningRate) ;
 				//double change = errorWRTweight;
+				//TODO no need to uddate weights here, save average and add momentum and ADAM
 				double change = errorWRTweight * learningRate +momentum * hiddenLayer.getNeurons(i).getV(k);
-				UpdatedOutWeights[k] = hiddenLayer.getNeurons(i).getWeight(k) - learningRate*change;
+				hiddenDelta[i][k] += learningRate*change/batchsize;
+				//UpdatedOutWeights[k] = hiddenLayer.getNeurons(i).getWeight(k) - learningRate*hiddenDelta[i][k];
 				hiddenLayer.getNeurons(i).setV(change, k);
 				//out.println("updatedWeightHiddenLayer("+i+"): "+UpdatedOutWeights[k] +", beforeUpdate: "+hiddenLayer.getNeurons(i).getWeight(k) + ", errorWRTOUT: "+errorWRTHiddenOut[i] + ", change: "+change +", hiddenOut0: " +hiddenOut[0] +", inut:"+inputs[0]);
-
-
 			}
-			hiddenLayer.getNeurons(i).updateWeights(UpdatedOutWeights);
 		}
 
 
@@ -754,14 +745,13 @@ public class Lab3 {
 						double gradient = 0;
 						for(int ai = 0; ai < C1_layer.plates[j].matrix2.length-C2_layer.kernal_length+1; ai++){
 							for(int aj = 0; aj < C1_layer.plates[j].matrix2.length-C2_layer.kernal_length+1; aj++){;
-								gradient += deltas_2.get(i)[ai][aj]*C1_layer.plates[j].matrix2[ai+ki][aj+kj];
+							gradient += deltas_2.get(i)[ai][aj]*C1_layer.plates[j].matrix2[ai+ki][aj+kj];
 							}
 						}
+						//TODO no need to uddate weights here, save average and add momentum and ADAM
 
-//						if(j == 0){
-//							out.println("gradientC2Plate("+i+"): "+ C2_layer.plates[i].kernal[j][ki][kj]);
-//						}
-						C2_layer.plates[i].kernal[j][ki][kj] -= learningRate *gradient;
+						conv2Delta.get(i)[j][ki][kj] += gradient/batchsize;
+						C2_layer.plates[i].kernal[j][ki][kj] -= learningRate *conv2Delta.get(i)[j][ki][kj];
 					}
 
 				}
@@ -769,7 +759,10 @@ public class Lab3 {
 			// update bias delta
 			for(int ai = 0; ai < c2_maxtrix1_len; ai++){
 				for(int aj = 0; aj < c2_maxtrix1_len; aj++){
-					C2_layer.biasWeight[i] -= learningRate*deltas_2.get(i)[ai][aj]*C2_layer.bias;
+					//TODO no need to uddate weights here, save average and add momentum and ADAM
+					double gradient = deltas_2.get(i)[ai][aj]*C2_layer.bias;
+					conv2Bias[i] += gradient/batchsize;
+					C2_layer.biasWeight[i] -= learningRate*conv2Bias[i];
 				}
 			}
 		}
@@ -786,24 +779,23 @@ public class Lab3 {
 								gradient += deltas_1.get(i)[ai][aj]*v.get(j)[ai+ki][aj+kj];
 							}
 						}
-//						if(j == 0){
-//							System.out.println("plate: "+i+", gradient: "+ C1_layer.plates[i].kernal[j][ki][kj]);
-//						}
-						C1_layer.plates[i].kernal[j][ki][kj] -= gradient*learningRate;
+						//TODO no need to uddate weights here, save average and add momentum and ADAM
+						conv1Delta.get(i)[j][ki][kj] += gradient/batchsize;
+						C1_layer.plates[i].kernal[j][ki][kj] -= gradient*conv1Delta.get(i)[j][ki][kj];
 					}
 				}
 			}
 			// update bias delta
 			for(int ai = 0; ai < c1_maxtrix1_len; ai++){
 				for(int aj = 0; aj < c1_maxtrix1_len; aj++){
-					C1_layer.biasWeight[i] -= learningRate*deltas_1.get(i)[ai][aj]*C1_layer.bias;
+					//TODO no need to uddate weights here, save average and add momentum and ADAM
+					double gradient = deltas_1.get(i)[ai][aj]*C1_layer.bias;
+					conv1Bias[i] += gradient/batchsize;
+					C1_layer.biasWeight[i] -= learningRate*conv1Bias[i];
 				}
 			}
 
 		}
-
-		// clear useAsMax
-
 	}
 
 	// one of N encoding
@@ -817,5 +809,3 @@ public class Lab3 {
 	////////////////////////////////////////////////////////////////////////////////////////////////
 
 }
-
-
