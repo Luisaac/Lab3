@@ -9,43 +9,24 @@ public class Neuron {
 	private double[] weights;
 	double bias;
 	private double[] v; // previous weight change for momentum
-	private double biasWeight;
-	public Neuron(int numLinks){
-
+	private int actFunc; // 0-leaky, 1-soft, 2-sigmoid
+	public Neuron(int numLinks, int actFunc){
+		this.actFunc = actFunc;
 		weights = new double[numLinks];
 		v = new double[numLinks];
 		// initialize weights [-0.3, 0.3]
 		for(int i = 0; i<numLinks;i++){
-			//weights[i] = getRandom(300,15);
-			weights[i] = -0.3+Math.random()*0.6;
+			weights[i] = Lab3.getRandomWeight(numLinks, 0);
+			//TODO
+			//weights[i] = 1.0;
 		}
 		bias = -1;
 	}
-	
-	private double getRandom(int fanin, int fanout){
-		double range = Math.max(Double.MIN_VALUE, 1.0 / Math.sqrt(fanin + fanout));
-		return (2.0 * rand.nextDouble() - 1.0) * range;
-	//	return -0.3+0.6*Lab3.random();
-	}
-	
-//	public Neuron(Neuron oldneuron, int numLinks ) {
-//		this.sigmoid = oldneuron.sigmoid;
-//		weights = new double[numLinks];
-//		System.arraycopy( oldneuron.weights, 0, this.weights, 0, numLinks);
-//		this.v = oldneuron.v;
-//	}
-//	
-//	public static Neuron copy( Neuron oldneuron,int numLinks ) {
-//		return new Neuron(oldneuron, numLinks);
-//	}
-//	
+
 	public void updateWeights(double[] update){
 		this.weights = update;
 	}
 	
-//	public void updateBias(double change){
-//		this.bias = bias - change;
-//	}
 	
 	public double getWeight(int index){
 		return this.weights[index];
@@ -55,14 +36,21 @@ public class Neuron {
 		
 		// net output
 		double net_output = 0.0;
-	//	System.out.println("weight in neuron");
 		for(int i = 0; i<inputs.length;i++){
 			net_output += inputs[i]*weights[i];
 		}
 		
 		net_output += bias*weights[inputs.length];
 		// sigmoid as activation function
-		this.activated_output = 1.0 / (1 + Math.exp(-1.0 * net_output));
+		if(actFunc == 2){
+			this.activated_output = 1.0 / (1 + Math.exp(-1.0 * net_output));
+		}else if(actFunc == 0){
+			
+			this.activated_output = (net_output >0)?net_output:net_output*0.01;
+//			if(weights.length > 350)
+//				System.out.println("activated: "+this.activated_output);
+		}else
+			this.activated_output = net_output;
 		return this.activated_output;
 	}
 	
@@ -71,10 +59,16 @@ public class Neuron {
 		return -(target-activated_output);
 	}
 	
+	
 	// derivative of weightedSum with respect to input
 	public double pdOutputWRTNetout(){
-		return activated_output * (1.0 - activated_output);
-		
+		if(actFunc == 2){
+			return activated_output * (1.0 - activated_output);
+		}else if(actFunc == 0){
+			return activated_output>0?1:0.01;
+		}else{
+			return 0;
+		}
 	}
 	
 	public double pdErrorWRTNetout(double target){
