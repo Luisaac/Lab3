@@ -17,9 +17,6 @@ class Plate{
 
 		useAsMax = new boolean[input_length][input_length];
 		this.input_length = input_length;
-		//TODO
-//		if(this.input_length == 5)
-//			matrix2 = new double[input_length][input_length];
 	}
 
 	public void output(int len){

@@ -8,12 +8,21 @@ public class Neuron {
 	private double activated_output;	
 	private double[] weights;
 	double bias;
-	private double[] v; // previous weight change for momentum
+	private double[] v; 
+	private double[] mpar;
+	private double[] vpar;
+	private int[] tpar;
+	
+	// previous weight change for momentum
 	private int actFunc; // 0-leaky, 1-soft, 2-sigmoid
 	public Neuron(int numLinks, int actFunc){
 		this.actFunc = actFunc;
 		weights = new double[numLinks];
 		v = new double[numLinks];
+		mpar = new double[numLinks];
+		vpar = new double[numLinks];
+		tpar = new int[numLinks];
+		
 		// initialize weights [-0.3, 0.3]
 		for(int i = 0; i<numLinks;i++){
 			weights[i] = Lab3.getRandomWeight(numLinks, 0);
@@ -74,7 +83,6 @@ public class Neuron {
 	public double pdErrorWRTNetout(double target){
 		return pdErrorWRTOutput(target)*pdOutputWRTNetout();
 	}
-
 	
 	public double computeError(double target){
 		return 1/2*Math.pow((target-this.activated_output), 2);
@@ -87,6 +95,33 @@ public class Neuron {
 	public void setV(double v, int i){
 		this.v[i] = v;
 	}
+	
+	public double getParM(int i) {
+		return mpar[i];
+	}
+	
+	public void setParM(double mpar , int i){
+		this.mpar[i] = mpar;
+	}
+
+	public double getParV(int i){
+		return vpar[i];
+	}
+	
+	
+	public void setParV(double vpar, int i){
+		this.vpar[i] = vpar;
+	}
+	
+	public int getParT( int i ) {
+		return this.tpar[i];
+	}
+	
+	public void setParT(int tpar, int i) {
+		this.tpar[i] = tpar + 1;
+	}
+	
+	
 	
 	
 }
