@@ -89,6 +89,7 @@ public class Lab3 {
 	static Layer C2_layer = null;
 	static FCLayer hiddenLayer;
 	static FCLayer outLayer;
+	static int epoch;
 
 	final static int numLinks = (secondLayerSize - kernal_length1 + 1) / pooling_length1
 			* ((secondLayerSize - kernal_length1 + 1) / pooling_length1) * num_plate;
@@ -159,9 +160,9 @@ public class Lab3 {
 																		// left-to-right
 																		// or
 																		// top-to-bottom.
-						!"grand_piano".equals(origTrainImage.getLabel())) { // Ditto
-																			// for
-																			// pianos.
+				!"grand_piano".equals(origTrainImage.getLabel())) { // Ditto
+																	// for
+																	// pianos.
 
 					trainsetExtras.add(origTrainImage.flipImageLeftToRight());
 
@@ -177,16 +178,16 @@ public class Lab3 {
 																			// don't
 																			// flip
 																			// top-to-bottom.
-							!"flower".equals(origTrainImage.getLabel()) && // Ditto
-																			// for
-																			// flowers.
-							!"starfish".equals(origTrainImage.getLabel())) { // Star
-																				// fish
-																				// are
-																				// standardized
-																				// to
-																				// 'point
-																				// up.
+					!"flower".equals(origTrainImage.getLabel()) && // Ditto
+																	// for
+																	// flowers.
+					!"starfish".equals(origTrainImage.getLabel())) { // Star
+																		// fish
+																		// are
+																		// standardized
+																		// to
+																		// 'point
+																		// up.
 						trainsetExtras.add(origTrainImage.flipImageTopToBottom());
 					}
 				}
@@ -453,14 +454,14 @@ public class Lab3 {
 
 		if ("deep".equals(modelToUse)) {
 			// for(int i = 0; i < maxEpochs; i++){
-			for (int i = 0; i < maxEpochs; i++) {
+			for (epoch = 0; epoch < maxEpochs; epoch++) {
 				permute(trainFeatureVectors, trainLabels);
-				System.out.println("epoch: " + i);
-				System.out.println("Train Accuracy at epoch " + i);
+				System.out.println("epoch: " + epoch);
+				System.out.println("Train Accuracy at epoch " + epoch);
 				trainDeep(trainFeatureVectors, 0, trainLabels);
-				System.out.println("Tune Accuracy at epoch " + i);
+				System.out.println("Tune Accuracy at epoch " + epoch);
 				trainDeep(tuneFeatureVectors, 1, tuneLabels);
-				System.out.println("Test Accuracy at epoch " + i);
+				System.out.println("Test Accuracy at epoch " + epoch);
 				trainDeep(testFeatureVectors, 1, testLabels);
 			}
 		}
@@ -817,9 +818,12 @@ public class Lab3 {
 				// outLayer.getNeurons(i).getV(j);
 				double M = beta1 * outLayer.getNeurons(i).getParM(j) + (1 - beta1) * errorWRTweight;
 				double V = beta2 * outLayer.getNeurons(i).getParV(j) + (1 - beta2) * errorWRTweight * errorWRTweight;
-				outLayer.getNeurons(i).setParT(outLayer.getNeurons(i).getParT(j) + 1, i);
-				double MM = (1 / (1 - Math.pow(beta1, outLayer.getNeurons(i).getParT(j)))) * M;
-				double VV = (1 / (1 - Math.pow(beta2, outLayer.getNeurons(i).getParT(j)))) * V;
+				//outLayer.getNeurons(i).setParT(outLayer.getNeurons(i).getParT(j) + 1, i);
+//				double MM = (1 / (1 - Math.pow(beta1, outLayer.getNeurons(i).getParT(j)))) * M;
+//				double VV = (1 / (1 - Math.pow(beta2, outLayer.getNeurons(i).getParT(j)))) * V;
+				double MM = (1 / (1 - (double)Math.pow(beta1, epoch+1))) * M;
+				double VV = (1 / (1 - (double)Math.pow(beta2, epoch+1))) * V;
+				//System.out.println( "b"+beta1+" "+ (double)Math.pow(beta1, epoch));
 				UpdatedOutWeights[j] = outLayer.getNeurons(i).getWeight(j)
 						+ (-learningRate * MM) / (Math.sqrt(VV) + eps);
 				outLayer.getNeurons(i).setParM(M, j);
@@ -846,10 +850,12 @@ public class Lab3 {
 				// hiddenLayer.getNeurons(i).setV(change, k);
 				double M = beta1 * hiddenLayer.getNeurons(i).getParM(k) + (1 - beta1) * errorWRTweight;
 				double V = beta2 * hiddenLayer.getNeurons(i).getParV(k) + (1 - beta2) * errorWRTweight * errorWRTweight;
-				hiddenLayer.getNeurons(i).setParT(hiddenLayer.getNeurons(i).getParT(k) + 1, i);
-				double MM = (1 / (1 - Math.pow(beta1, hiddenLayer.getNeurons(i).getParT(k)))) * M;
-				double VV = (1 / (1 - Math.pow(beta2, hiddenLayer.getNeurons(i).getParT(k)))) * V;
+				//hiddenLayer.getNeurons(i).setParT(hiddenLayer.getNeurons(i).getParT(k) + 1, i);
+//				double MM = (1 / (1 - Math.pow(beta1, hiddenLayer.getNeurons(i).getParT(k)))) * M;
+//				double VV = (1 / (1 - Math.pow(beta2, hiddenLayer.getNeurons(i).getParT(k)))) * V;
 
+				double MM = (1 / (1 - (double)Math.pow(beta1, epoch+1))) * M;
+				double VV = (1 / (1 - (double)Math.pow(beta2, epoch+1))) * V;
 				UpdatedOutWeights[k] = hiddenLayer.getNeurons(i).getWeight(k)
 						+ (-learningRate * MM) / (Math.sqrt(VV) + eps);
 				hiddenLayer.getNeurons(i).setParM(M, k);
@@ -876,9 +882,8 @@ public class Lab3 {
 
 						double M = beta1 * C2_layer.getParM(j, ki, kj, i) + (1 - beta1) * gradient;
 						double V = beta2 * C2_layer.getParV(j, ki, kj, i) + (1 - beta2) * gradient * gradient;
-						C2_layer.setParT(C2_layer.getParT(j, ki, kj, i) + 1, j, ki, kj, i);
-						double MM = (1 / (1 - Math.pow(beta1, C2_layer.getParM(j, ki, kj, i)))) * M;
-						double VV = (1 / (1 - Math.pow(beta2, C2_layer.getParV(j, ki, kj, i)))) * V;
+						double MM = (1 / (1 - (double)Math.pow(beta1, epoch+1))) * M;
+						double VV = (1 / (1 - (double)Math.pow(beta2, epoch+1))) * V;
 						C2_layer.plates[i].kernal[j][ki][kj] -= (learningRate * MM) / (Math.sqrt(VV) + eps);
 						C2_layer.setParM(M, j, ki, kj, i);
 						C2_layer.setParV(V, j, ki, kj, i);
@@ -889,25 +894,21 @@ public class Lab3 {
 			}
 			// update bias delta
 			double gradient = 0;
-			
+
 			for (int ai = 0; ai < c2_maxtrix1_len; ai++) {
 				for (int aj = 0; aj < c2_maxtrix1_len; aj++) {
 					gradient += deltas_2.get(i)[ai][aj] * C2_layer.bias;
 				}
 			}
-			
+
 			double M = beta1 * C2_layer.getParMbias(i) + (1 - beta1) * gradient;
 			double V = beta2 * C2_layer.getParVbias(i) + (1 - beta2) * gradient * gradient;
-			C2_layer.setParT(C2_layer.getParT(i) + 1, i);
-			double MM = (1 / (1 - Math.pow(beta1, C2_layer.getParMbias(i)))) * M;
-			double VV = (1 / (1 - Math.pow(beta2, C2_layer.getParVbias(i)))) * V;
+			double MM = (1 / (1 - (double)Math.pow(beta1, epoch+1))) * M;
+			double VV = (1 / (1 - (double)Math.pow(beta2, epoch+1))) * V;
 			C2_layer.biasWeight[i] -= (learningRate * MM) / (Math.sqrt(VV) + eps);
 			C2_layer.setParMbias(M, i);
 			C2_layer.setParVbias(V, i);
-			
-			
-			
-			
+
 		}
 
 		// update weight 1
@@ -924,9 +925,8 @@ public class Lab3 {
 
 						double M = beta1 * C1_layer.getParM(j, ki, kj, i) + (1 - beta1) * gradient;
 						double V = beta2 * C1_layer.getParV(j, ki, kj, i) + (1 - beta2) * gradient * gradient;
-						C1_layer.setParT(C1_layer.getParT(j, ki, kj, i) + 1, j, ki, kj, i);
-						double MM = (1 / (1 - Math.pow(beta1, C1_layer.getParM(j, ki, kj, i)))) * M;
-						double VV = (1 / (1 - Math.pow(beta2, C1_layer.getParV(j, ki, kj, i)))) * V;
+						double MM = (1 / (1 - (double)Math.pow(beta1, epoch+1))) * M;
+						double VV = (1 / (1 - (double)Math.pow(beta2, epoch+1))) * V;
 						C1_layer.plates[i].kernal[j][ki][kj] -= (learningRate * MM) / (Math.sqrt(VV) + eps);
 						C1_layer.setParM(M, j, ki, kj, i);
 						C1_layer.setParV(V, j, ki, kj, i);
@@ -937,24 +937,19 @@ public class Lab3 {
 			double gradient = 0;
 			for (int ai = 0; ai < c1_maxtrix1_len; ai++) {
 				for (int aj = 0; aj < c1_maxtrix1_len; aj++) {
-					 gradient += deltas_1.get(i)[ai][aj] * C1_layer.bias;
-					
+					gradient += deltas_1.get(i)[ai][aj] * C1_layer.bias;
+
 				}
 			}
 
 			double M = beta1 * C1_layer.getParMbias(i) + (1 - beta1) * gradient;
 			double V = beta2 * C1_layer.getParVbias(i) + (1 - beta2) * gradient * gradient;
-			C1_layer.setParT(C1_layer.getParT(i) + 1, i);
-			double MM = (1 / (1 - Math.pow(beta1, C1_layer.getParMbias(i)))) * M;
-			double VV = (1 / (1 - Math.pow(beta2, C1_layer.getParVbias(i)))) * V;
+			double MM = (1 / (1 - (double)Math.pow(beta1, epoch+1))) * M;
+			double VV = (1 / (1 - (double)Math.pow(beta2, epoch+1))) * V;
 			C1_layer.biasWeight[i] -= (learningRate * MM) / (Math.sqrt(VV) + eps);
 			C1_layer.setParMbias(M, i);
 			C1_layer.setParVbias(V, i);
-			
-			
-			
-			
-			
+
 		}
 
 		// clear useAsMax

@@ -236,14 +236,6 @@ public class Layer {
 		this.vpars.get(p)[i][j][k] = v;
 	}
 
-	public int getParT(int i, int j, int k, int p) {
-		return tpars.get(p)[i][j][k];
-	}
-
-	public void setParT(int t, int i, int j, int k, int p) {
-		this.tpars.get(p)[i][j][k] = t;
-	}
-
 	//////////////////////////////////////////////////////////////////////////////////
 
 	// biasweight
